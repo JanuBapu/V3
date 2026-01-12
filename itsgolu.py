@@ -241,6 +241,11 @@ def decrypt_file(file_path: str, key: str) -> bool:
     if not file_path or not os.path.exists(file_path):
         return False
 
+    # 👇 NEW SAFETY CHECK
+    if os.path.getsize(file_path) == 0:
+        print("❌ File is empty, skipping decrypt")
+        return False
+
     if not key:
         return True
 
