@@ -75,7 +75,7 @@ from db import db
 
 auto_flags = {}
 auto_clicked = False
-
+namef = ""
 # Global variables
 watermark = "/d"  # Default value
 count = 0
