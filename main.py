@@ -732,56 +732,10 @@ async def txt_handler(bot: Client, m: Message):
             if "acecwply" in url:
                 cmd = f'yt-dlp -o "{name}.%(ext)s" -f "bestvideo[height<={raw_text2}]+bestaudio" --hls-prefer-ffmpeg --no-keep-video --remux-video mkv --no-warning "{url}"'
 
-            elif "https://static-trans-v1.classx.co.in" in url or "https://static-trans-v2.classx.co.in" in url:
-                base_with_params, signature = url.split("*")
+           
 
-                base_clean = base_with_params.split(".mkv")[0] + ".mkv"
 
-                if "static-trans-v1.classx.co.in" in url:
-                    base_clean = base_clean.replace("https://static-trans-v1.classx.co.in", "https://appx-transcoded-videos-mcdn.akamai.net.in")
-                elif "static-trans-v2.classx.co.in" in url:
-                    base_clean = base_clean.replace("https://static-trans-v2.classx.co.in", "https://transcoded-videos-v2.classx.co.in")
-
-                url = f"{base_clean}*{signature}"
             
-            elif "https://static-rec.classx.co.in/drm/" in url:
-                base_with_params, signature = url.split("*")
-
-                base_clean = base_with_params.split("?")[0]
-
-                base_clean = base_clean.replace("https://static-rec.classx.co.in", "https://appx-recordings-mcdn.akamai.net.in")
-
-                url = f"{base_clean}*{signature}"
-
-            elif "https://static-wsb.classx.co.in/" in url:
-                clean_url = url.split("?")[0]
-
-                clean_url = clean_url.replace("https://static-wsb.classx.co.in", "https://appx-wsb-gcp-mcdn.akamai.net.in")
-
-                url = clean_url
-
-            elif "https://static-db.classx.co.in/" in url:
-                if "*" in url:
-                    base_url, key = url.split("*", 1)
-                    base_url = base_url.split("?")[0]
-                    base_url = base_url.replace("https://static-db.classx.co.in", "https://appxcontent.kaxa.in")
-                    url = f"{base_url}*{key}"
-                else:
-                    base_url = url.split("?")[0]
-                    url = base_url.replace("https://static-db.classx.co.in", "https://appxcontent.kaxa.in")
-
-
-            elif "https://static-db-v2.classx.co.in/" in url:
-                if "*" in url:
-                    base_url, key = url.split("*", 1)
-                    base_url = base_url.split("?")[0]
-                    base_url = base_url.replace("https://static-db-v2.classx.co.in", "https://appx-content-v2.classx.co.in")
-                    url = f"{base_url}*{key}"
-                else:
-                    base_url = url.split("?")[0]
-                    url = base_url.replace("https://static-db-v2.classx.co.in", "https://appx-content-v2.classx.co.in")
-
-                user_id = m.from_user.id
 
             elif any(x in url for x in ["https://cpvod.testbook.com/", "classplusapp.com/drm/", "media-cdn.classplusapp.com", "media-cdn-alisg.classplusapp.com", "media-cdn-a.classplusapp.com", "tencdn.classplusapp", "videos.classplusapp", "webvideos.classplusapp.com"]):
                 # normalize cpvod -> media-cdn path used by API
@@ -854,12 +808,57 @@ async def txt_handler(bot: Client, m: Message):
             if "edge.api.brightcove.com" in url:
                 bcov = f'bcov_auth={cwtoken}'
                 url = url.split("bcov_auth")[0]+bcov
-                           
+            elif "dragoapi.vercel.app" in url and "*" in url :
+    # Split into base URL and key
+             parts = url.split("*", 1)
+             if len(parts) == 2:
+              base_url = parts[0].strip()
+              appxkey = parts[1].strip()   # e.g. 8822682
+              response = requests.get(base_url, timeout=10, allow_redirects=True)
+              final_url = response.url.strip()  # resolved CDN link
+
+        # Step 2: Overwrite url with the resolved link
+              url = final_url
+              print(f"⚡ DragoAPI link detected → base_url={base_url}, appxkey={appxkey}")
+            elif "dragoapi.vercel.app" in url and ".mkv" in url:
+              r = requests.get(url, timeout=10, allow_redirects=True)
+
+    # Step 2: Final resolved URL
+              final_url = r.url
+
+    # Step 3: Store directly in url for downloading
+              url = final_url.strip()
             elif "d1d34p8vz63oiq" in url or "sec1.pw.live" in url:
                 url = f"https://anonymouspwplayer-b99f57957198.herokuapp.com/pw?url={url}?token={raw_text4}"
 
-            if ".pdf*" in url:
-                url = f"https://dragoapi.vercel.app/pdf/{url}"
+           
+            elif 'encrypted.m' in url:
+                 appxkey = url.split('*')[1]
+                 url = url.split('*')[0]
+            
+
+            
+            
+            elif ".m3u8" in url and "appx" in url:
+             r = requests.get(url, timeout=10)
+             data_json = r.json()
+
+             enc_url = data_json.get("video_url")
+
+             if "*" in enc_url:
+        # URL = * se pehle wala
+               before, after = enc_url.split("*", 1)
+
+    # URL = * se pehle wala
+               url = before.strip()
+
+    # APPX KEY = * ke baad wala decoded (final digit)
+               appxkey = base64.b64decode(after.strip()).decode().strip()
+
+             else:
+        # Direct URL case
+              url = enc_url.strip()
+              appxkey = data_json.get("encryption_key")
             
             elif 'encrypted.m' in url:
                 appxkey = url.split('*')[1]
@@ -917,6 +916,66 @@ async def txt_handler(bot: Client, m: Message):
                         continue    
   
                 elif ".pdf" in url:
+                    final_url = url
+                    need_referer = False
+                    namef = name1
+                    if "appxsignurl.vercel.app/appx/" in url:
+                        try:
+                            # Step 1: Directly use the original URL
+                            response = requests.get(url.strip(), timeout=10)
+                            data = response.json()
+
+                            # Step 2: Extract actual PDF URL
+                            pdf_url = data.get("pdf_url")
+                            if pdf_url:
+                                url = pdf_url.strip()   # overwrite with real downloadable link
+                            else:
+                                print("No pdf_url found in response JSON.")
+                                # fallback: keep original URL
+                                # url remains unchanged
+
+                            # Step 3: Extract title if available
+                            namef = data.get("title", name1)
+
+                            # Step 4: Mark referer requirement
+                            need_referer = True
+                        except Exception as e:
+                            print(f"Error fetching AppxSignURL JSON: {e}")
+                            need_referer = True
+                            namef = name1
+                    
+
+                    elif "static-db.appx.co.in" in url:
+                           
+                           need_referer = True
+                           namef = name1
+                    elif "static-db-v2.appx.co.in" in url:
+                           
+                           need_referer = True
+                           namef = name1
+
+                    elif "static-db-v2.appx.co.in" in url:
+                        filename = urlparse(url).path.split("/")[-1]
+                        url = f"https://appx-content-v2.classx.co.in/paid_course4/{filename}"
+                        need_referer = True
+                        namef = name1
+                    else:
+                        if topic == "/yes":
+                            namef = f'{v_name}'
+                        else:
+                            try:
+                                response = requests.get(url)
+                                if response.status_code == 200:
+                                    try:
+                                        data = response.json()
+                                        namef = data.get("title", name1).replace("nn", "")
+                                    except:
+                                        namef = name1
+                                else:
+                                    namef = name1
+                            except:
+                                namef = name1
+                        need_referer = True
                     if "cwmediabkt99" in url:
                         max_retries = 3  # Define the maximum number of retries
                         retry_delay = 4  # Delay between retries in seconds
@@ -950,19 +1009,40 @@ async def txt_handler(bot: Client, m: Message):
                                 continue 
                         for msg in failure_msgs:
                             await msg.delete()
-                            
+
                     else:
+                        namef = name1
                         try:
-                            cmd = f'yt-dlp -o "{name}.pdf" "{url}"'
+                            # -----------------------------------------
+                            if need_referer:
+                                referer = "https://player.akamai.net.in/"
+                                cmd = f'yt-dlp --add-header "Referer: {referer}" -o "{namef}.pdf" "{url}"'
+                            else:
+                                cmd = f'yt-dlp -o "{namef}.pdf" "{url}"'
+
                             download_cmd = f"{cmd} -R 25 --fragment-retries 25"
+
+                            # -----------------------------------------
+                            # DOWNLOAD PDF
+                            # -----------------------------------------
                             os.system(download_cmd)
-                            copy = await bot.send_document(chat_id=channel_id, document=f'{name}.pdf', caption=cc1)
+
+                            # -----------------------------------------
+                            # SEND PDF
+                            # -----------------------------------------
+                            copy = await bot.send_document(
+                                chat_id=channel_id,
+                                document=f"{namef}.pdf",
+                                caption=cc1
+                            )
+
                             count += 1
-                            os.remove(f'{name}.pdf')
+                            os.remove(f"{namef}.pdf")
+
                         except FloodWait as e:
                             await m.reply_text(str(e))
                             time.sleep(e.x)
-                            continue    
+                            continue
 
                 elif ".ws" in url and  url.endswith(".ws"):
                     try:
@@ -1003,9 +1083,30 @@ async def txt_handler(bot: Client, m: Message):
                         time.sleep(e.x)
                         continue    
                     
-                elif 'encrypted.m' in url:    
-                    Show = f"<i><b>Video APPX Encrypted Downloading</b></i>\n<blockquote><b>{str(count).zfill(3)}) {name1}</b></blockquote>"
+                elif "encrypted.m" in url \
+                    or "appxsignurl.vercel.app/appx/" in url \
+                    or ("dragoapi.vercel.app" in url and "*" in url):
+    # handle appx/encrypted/appxsignurl/dragoapi with *key
+                    remaining_links = len(links) - count
+                    progress = (count / len(links)) * 100
+                    Show1 = f"<blockquote>🚀𝐏𝐫𝐨𝐠𝐫𝐞𝐬𝐬 » {progress:.2f}%</blockquote>\n┃\n" \
+                           f"┣🔗𝐈𝐧𝐝𝐞𝐱 » {count}/{len(links)}\n┃\n" \
+                           f"╰━🖇️𝐑𝐞𝐦𝐚𝐢𝐧 » {remaining_links}\n" \
+                           f"━━━━━━━━━━━━━━━━━━━━━━━━\n" \
+                           f"<blockquote><b>⚡Dᴏᴡɴʟᴏᴀᴅɪɴɢ Eɴᴄʀʏᴘᴛᴇᴅ Sᴛᴀʀᴛᴇᴅ...⏳</b></blockquote>\n┃\n" \
+                           f'┣💃𝐂𝐫𝐞𝐝𝐢𝐭 » {CR}\n┃\n' \
+                           f"╰━📚𝐁𝐚𝐭𝐜𝐡 » {b_name}\n" \
+                           f"━━━━━━━━━━━━━━━━━━━━━━━━━\n" \
+                           f"<blockquote>📚𝐓𝐢𝐭𝐥𝐞 » {namef}</blockquote>\n┃\n" \
+                           f"┣🍁𝐐𝐮𝐚𝐥𝐢𝐭𝐲 » {quality}\n┃\n" \
+                           f'┣━🔗𝐋𝐢𝐧𝐤 » <a href="{link0}">**Original Link**</a>\n┃\n' \
+                           f'╰━━🖇️𝐔𝐫𝐥 » <a href="{url}">**Api Link**</a>\n' \
+                           f"━━━━━━━━━━━━━━━━━━━━━━━━━\n" \
+                           f"🛑**Send** /stop **to stop process**\n┃\n" \
+                           f"╰━✦𝐁𝐨𝐭 𝐌𝐚𝐝𝐞 𝐁𝐲 ✦ {CREDIT}"
+                    Show = f"<i><b>Video Downloading</b></i>\n<blockquote><b>{str(count).zfill(3)}) {name1}</b></blockquote>" 
                     prog = await bot.send_message(channel_id, Show, disable_web_page_preview=True)
+                    prog1 = await m.reply_text(Show1, disable_web_page_preview=True)
                     try:
 
                         res_file = await helper.download_and_decrypt_video(url, cmd, name, appxkey)  
@@ -1029,23 +1130,52 @@ async def txt_handler(bot: Client, m: Message):
                     
 
                 elif 'drmcdni' in url or 'drm/wv' in url or 'drm/common' in url:
-                    Show = f"<i><b>📥 Fast Video Downloading</b></i>\n<blockquote><b>{str(count).zfill(3)}) {name1}</b></blockquote>"
+                    remaining_links = len(links) - count
+                    progress = (count / len(links)) * 100
+                    Show1 = f"<blockquote>🚀𝐏𝐫𝐨𝐠𝐫𝐞𝐬𝐬 » {progress:.2f}%</blockquote>\n┃\n" \
+                           f"┣🔗𝐈𝐧𝐝𝐞𝐱 » {count}/{len(links)}\n┃\n" \
+                           f"╰━🖇️𝐑𝐞𝐦𝐚𝐢𝐧 » {remaining_links}\n" \
+                           f"━━━━━━━━━━━━━━━━━━━━━━━━\n" \
+                           f"<blockquote><b>⚡Dᴏᴡɴʟᴏᴀᴅɪɴɢ Sᴛᴀʀᴛᴇᴅ...⏳</b></blockquote>\n┃\n" \
+                           f'┣💃𝐂𝐫𝐞𝐝𝐢𝐭 » {CR}\n┃\n' \
+                           f"╰━📚𝐁𝐚𝐭𝐜𝐡 » {b_name}\n" \
+                           f"━━━━━━━━━━━━━━━━━━━━━━━━━\n" \
+                           f"<blockquote>📚𝐓𝐢𝐭𝐥𝐞 » {namef}</blockquote>\n┃\n" \
+                           f"┣🍁𝐐𝐮𝐚𝐥𝐢𝐭𝐲 » {quality}\n┃\n" \
+                           f'┣━🔗𝐋𝐢𝐧𝐤 » <a href="{link0}">**Original Link**</a>\n┃\n' \
+                           f'╰━━🖇️𝐔𝐫𝐥 » <a href="{url}">**Api Link**</a>\n' \
+                           f"━━━━━━━━━━━━━━━━━━━━━━━━━\n" \
+                           f"🛑**Send** /stop **to stop process**\n┃\n" \
+                           f"╰━✦𝐁𝐨𝐭 𝐌𝐚𝐝𝐞 𝐁𝐲 ✦ {CREDIT}"
+                    Show = f"<i><b>Video Downloading</b></i>\n<blockquote><b>{str(count).zfill(3)}) {name1}</b></blockquote>"
                     prog = await bot.send_message(channel_id, Show, disable_web_page_preview=True)
-                    res_file = await helper.decrypt_and_merge_video(mpd, keys_string, path, name, raw_text2)
-                    filename = res_file
-                    await prog.delete(True)
-                    await helper.send_vid(bot, m, cc, filename, thumb, name, prog, channel_id, watermark=watermark)
-                    count += 1
-                    await asyncio.sleep(1)
-                    continue
+                    prog1 = await m.reply_text(Show1, disable_web_page_preview=True)
 
      
 
             
 
                 else:
-                    Show = f"<i><b>📥 Fast Video Downloading</b></i>\n<blockquote><b>{str(count).zfill(3)}) {name1}</b></blockquote>"
+                    remaining_links = len(links) - count
+                    progress = (count / len(links)) * 100
+                    Show1 = f"<blockquote>🚀𝐏𝐫𝐨𝐠𝐫𝐞𝐬𝐬 » {progress:.2f}%</blockquote>\n┃\n" \
+                           f"┣🔗𝐈𝐧𝐝𝐞𝐱 » {count}/{len(links)}\n┃\n" \
+                           f"╰━🖇️𝐑𝐞𝐦𝐚𝐢𝐧 » {remaining_links}\n" \
+                           f"━━━━━━━━━━━━━━━━━━━━━━━━\n" \
+                           f"<blockquote><b>⚡Dᴏᴡɴʟᴏᴀᴅɪɴɢ Sᴛᴀʀᴛᴇᴅ...⏳</b></blockquote>\n┃\n" \
+                           f'┣💃𝐂𝐫𝐞𝐝𝐢𝐭 » {CR}\n┃\n' \
+                           f"╰━📚𝐁𝐚𝐭𝐜𝐡 » {b_name}\n" \
+                           f"━━━━━━━━━━━━━━━━━━━━━━━━━\n" \
+                           f"<blockquote>📚𝐓𝐢𝐭𝐥𝐞 » {namef}</blockquote>\n┃\n" \
+                           f"┣🍁𝐐𝐮𝐚𝐥𝐢𝐭𝐲 » {quality}\n┃\n" \
+                           f'┣━🔗𝐋𝐢𝐧𝐤 » <a href="{link0}">**Original Link**</a>\n┃\n' \
+                           f'╰━━🖇️𝐔𝐫𝐥 » <a href="{url}">**Api Link**</a>\n' \
+                           f"━━━━━━━━━━━━━━━━━━━━━━━━━\n" \
+                           f"🛑**Send** /stop **to stop process**\n┃\n" \
+                           f"╰━✦𝐁𝐨𝐭 𝐌𝐚𝐝𝐞 𝐁𝐲 ✦ {CREDIT}"
+                    Show = f"<i><b>Video Downloading</b></i>\n<blockquote><b>{str(count).zfill(3)}) {name1}</b></blockquote>"
                     prog = await bot.send_message(channel_id, Show, disable_web_page_preview=True)
+                    prog1 = await m.reply_text(Show1, disable_web_page_preview=True)
                     res_file = await helper.download_video(url, cmd, name)
                     filename = res_file
                     await prog.delete(True)
