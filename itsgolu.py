@@ -469,7 +469,7 @@ import re
 FIXED_REFERER = "https://player.akamai.net.in/"
 
 def process_zip_to_video(url: str, name: str) -> str:
-    temp_dir = tempfile.mkdtemp(prefix="zip_cbt_")
+    temp_dir = tempfile.mkdtemp(prefix="zip_final_")
     zip_path = os.path.join(temp_dir, "file.zip")
     extract_dir = os.path.join(temp_dir, "extract")
     output_path = os.path.join(temp_dir, f"{name}.mp4")
@@ -498,55 +498,77 @@ def process_zip_to_video(url: str, name: str) -> str:
             z.extractall(extract_dir)
         print("✅ Extract complete")
 
-        # ================= FIND TS/TSB =================
-        print("🔍 Scanning TS / TSB files...")
+        # ================= FIND M3U8 =================
+        m3u8_path = None
+        for root, _, files in os.walk(extract_dir):
+            for f in files:
+                if f.endswith(".m3u8"):
+                    m3u8_path = os.path.join(root, f)
+                    break
+
+        if m3u8_path:
+            print(f"🎬 Found m3u8: {m3u8_path}")
+            cmd = [
+                "ffmpeg", "-y",
+                "-headers", f"Referer: {FIXED_REFERER}\r\n",
+                "-allowed_extensions", "ALL",
+                "-protocol_whitelist", "file,http,https,tcp,tls",
+                "-i", m3u8_path,
+                "-c", "copy",
+                output_path
+            ]
+            try:
+                subprocess.run(cmd, check=True)
+                print("✅ m3u8 merged successfully")
+                return output_path
+            except subprocess.CalledProcessError:
+                print("⚠️ m3u8 failed, falling back to segment merge")
+
+        # ================= SCAN SEGMENTS =================
+        print("🔍 Scanning TSB / TSE segments...")
         segments = {}
 
         for root, _, files in os.walk(extract_dir):
             for f in files:
-                m = re.search(r'-(\d+)\.(ts|tsb)$', f)
+                m = re.search(r'-(\d+)\.(tsb|tse|ts)$', f)
                 if not m:
                     continue
 
-                index = int(m.group(1))
-                if index == 0:        # 🔥 ignore 0
-                    continue
-
+                idx = int(m.group(1))
                 full_path = os.path.join(root, f)
 
-                if f.endswith(".tsb"):
+                if f.endswith((".tsb", ".tse")):
                     new_path = os.path.splitext(full_path)[0] + ".ts"
                     try:
                         os.rename(full_path, new_path)
-                        print(f"🔄 Renamed: {f} → {os.path.basename(new_path)}")
-                        segments[index] = new_path
+                        segments[idx] = new_path
                     except:
                         continue
                 else:
-                    segments[index] = full_path
+                    segments[idx] = full_path
 
         if not segments:
-            raise RuntimeError("❌ No valid TS segments found")
+            raise RuntimeError("❌ No segments found")
 
-        # ================= SERIAL ORDER =================
-        ordered_segments = []
-        i = 1
+        # ================= SERIAL ORDER 0 → n =================
+        ordered = []
+        i = 0
         while i in segments:
-            ordered_segments.append(segments[i])
+            if os.path.isfile(segments[i]):
+                ordered.append(segments[i])
             i += 1
 
-        if not ordered_segments:
-            raise RuntimeError("❌ No continuous TS sequence from 1 found")
+        if not ordered:
+            raise RuntimeError("❌ No continuous segments found")
 
         # ================= CREATE LIST =================
         list_file = os.path.join(extract_dir, "list.txt")
         with open(list_file, "w") as f:
-            for ts in ordered_segments:
-                if os.path.exists(ts):
-                    f.write(f"file '{ts}'\n")
+            for ts in ordered:
+                f.write(f"file '{ts}'\n")
 
         # ================= FFMPEG MERGE =================
-        print("⚡ Merging TS files (1 → n)...")
+        print("⚡ Merging segments (0 → n)...")
         cmd = [
             "ffmpeg", "-y",
             "-f", "concat",
