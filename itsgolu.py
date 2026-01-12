@@ -475,36 +475,18 @@ async def fast_download(url, name):
     
     return None
 
-import os, asyncio, subprocess, logging, tempfile, requests, zipfile, shutil
+import os
+import requests
+import zipfile
+import subprocess
+import tempfile
+import shutil
 
 FIXED_REFERER = "https://player.akamai.net.in/"
 
-# 1️⃣ Special case: appx + m3u8
-async def download_appx_m3u8(url, name):
-    try:
-        download_cmd = (
-            f'yt-dlp "{url}" '
-            f'--external-downloader aria2c '
-            f'--downloader-args "aria2c: -x 16 -j 32 --referer={FIXED_REFERER}" '
-            f'-o "{name}.mp4"'
-        )
-        print(download_cmd)
-        logging.info(download_cmd)
-
-        k = subprocess.run(download_cmd, shell=True)
-        if k.returncode == 0 and os.path.isfile(f"{name}.mp4"):
-            return f"{name}.mp4"
-        return None
-    except Exception as e:
-        logging.error(f"Error in download_appx_m3u8: {e}")
-        return None
-
-
-# 2️⃣ Special case: appx + zip
-
-
 def process_zip_to_video(url, name):
     temp_dir = tempfile.mkdtemp(prefix="zip_")
+
     zip_path = os.path.join(temp_dir, "file.zip")
     extract_dir = os.path.join(temp_dir, "extract")
     output_path = os.path.join(temp_dir, f"{name}.mp4")
@@ -515,7 +497,7 @@ def process_zip_to_video(url, name):
         "Range": "bytes=0-"
     }
 
-    # 1️⃣ ZIP DOWNLOAD
+    # 1️⃣ ZIP DOWNLOAD (FIXED REFERER)
     with requests.get(url, headers=headers, stream=True, timeout=20) as r:
         r.raise_for_status()
         with open(zip_path, "wb") as f:
@@ -540,7 +522,7 @@ def process_zip_to_video(url, name):
         shutil.rmtree(temp_dir)
         raise Exception("❌ m3u8 file nahi mili")
 
-    # 4️⃣ MERGE TS PARTS USING m3u8
+    # 4️⃣ m3u8 → MP4 (same referer ffmpeg me bhi)
     cmd = [
         "ffmpeg",
         "-y",
@@ -550,11 +532,67 @@ def process_zip_to_video(url, name):
         "-c", "copy",
         output_path
     ]
-    subprocess.run(cmd, check=True)
+
+    subprocess.run(cmd)
 
     return output_path, temp_dir
 
-# 3️⃣ Main function
+import os, requests, zipfile, subprocess
+
+import zipfile
+
+def extract_zip(zip_path: str) -> str:
+    extract_dir = zip_path.replace(".zip", "")
+    os.makedirs(extract_dir, exist_ok=True)
+
+    with zipfile.ZipFile(zip_path, "r") as z:
+        z.extractall(extract_dir)
+
+    return extract_dir
+
+
+import subprocess
+
+def merge_ts_files(folder: str, output: str):
+    ts_files = sorted(
+        f for f in os.listdir(folder)
+        if f.endswith((".ts", ".tse"))
+    )
+
+    list_file = os.path.join(folder, "list.txt")
+    with open(list_file, "w") as f:
+        for ts in ts_files:
+            f.write(f"file '{os.path.join(folder, ts)}'\n")
+
+    subprocess.run([
+        "ffmpeg", "-y",
+        "-f", "concat",
+        "-safe", "0",
+        "-i", list_file,
+        "-c", "copy",
+        output
+    ], check=True)
+
+    return output
+
+async def download_appx_m3u8(url, name):
+    try:
+        download_cmd = (
+            f'yt-dlp "{url}" '
+            f'--external-downloader aria2c '
+            f'--downloader-args "aria2c: -x 16 -j 32 --referer={FIXED_REFERER}" '
+            f'-o "{name}.mp4"'
+        )
+        print(download_cmd)
+        logging.info(download_cmd)
+
+        k = subprocess.run(download_cmd, shell=True)
+        if k.returncode == 0 and os.path.isfile(f"{name}.mp4"):
+            return f"{name}.mp4"
+        return None
+    except Exception as e:
+        logging.error(f"Error in download_appx_m3u8: {e}")
+        return None
 async def download_video(url, cmd, name):
     # Special cases first
     if "appx" in url and ".m3u8" in url:
