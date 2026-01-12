@@ -1117,13 +1117,8 @@ async def txt_handler(bot: Client, m: Message):
                     await prog.delete(True)
                     await helper.send_vid(bot, m, cc, filename, thumb, name, prog, channel_id, watermark=watermark)
                     count += 1
-                    if os.path.exists(filename):
-                        await helper.send_vid(bot, m, cc, filename, thumb, name, prog, channel_id, watermark=watermark)
-                    else:
-                        await bot.send_message(channel_id, f'⚠️**Downloading Failed**⚠️\n**Name** =>> `{str(count).zfill(3)} {name1}`\n**Url** =>> {link0}\n\n<blockquote><i><b>Failed Reason: {str(e)}</b></i></blockquote>', disable_web_page_preview=True)
-                        failed_count += 1
-                        count += 1
-                        continue
+                    await asyncio.sleep(1)  
+                    continue
 
                 elif 'drmcdni' in url or 'drm/wv' in url or 'drm/common' in url:
                     remaining_links = len(links) - count
@@ -1146,7 +1141,13 @@ async def txt_handler(bot: Client, m: Message):
                     Show = f"<i><b>Video Downloading</b></i>\n<blockquote><b>{str(count).zfill(3)}) {name1}</b></blockquote>"
                     prog = await bot.send_message(channel_id, Show, disable_web_page_preview=True)
                     prog1 = await m.reply_text(Show1, disable_web_page_preview=True)
-
+                    res_file = await helper.decrypt_and_merge_video(mpd, keys_string, path, name, raw_text2)
+                    filename = res_file
+                    await prog.delete(True)
+                    await helper.send_vid(bot, m, cc, filename, thumb, name, prog, channel_id, watermark=watermark)
+                    count += 1
+                    await asyncio.sleep(1)
+                    continue
      
 
             
