@@ -458,22 +458,11 @@ async def fast_download(url, name):
     return None
 
 
-import os
-import zipfile
-import subprocess
-import tempfile
-import shutil
-import requests
-import re
+import os, zipfile, subprocess, tempfile, shutil, requests, re
 
 REFERER = "https://player.akamai.net.in/"
 
 def process_zip_to_video(url, name):
-    """
-    Download ZIP, extract, map original indices to dense 0..N-1 .ts files,
-    print each rename, store renamed list, and merge with ffmpeg.
-    """
-    # 0️⃣ Setup
     temp_dir = tempfile.mkdtemp(prefix="zip_")
     zip_path = os.path.join(temp_dir, "video.zip")
     extract_dir = os.path.join(temp_dir, "extract")
@@ -481,88 +470,66 @@ def process_zip_to_video(url, name):
     os.makedirs(extract_dir, exist_ok=True)
 
     # 1️⃣ Download ZIP
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Android)",
-        "Referer": REFERER
-    }
-    print("⬇️ Downloading ZIP...")
+    headers = {"User-Agent": "Mozilla/5.0 (Android)", "Referer": REFERER}
     with requests.get(url, headers=headers, stream=True, timeout=60) as r:
         r.raise_for_status()
         with open(zip_path, "wb") as f:
             for chunk in r.iter_content(1024 * 1024):
-                if chunk:
-                    f.write(chunk)
-    print("✅ Download complete")
+                if chunk: f.write(chunk)
 
     # 2️⃣ Extract ZIP
-    print("📦 Extracting ZIP...")
     with zipfile.ZipFile(zip_path, "r") as z:
         z.extractall(extract_dir)
-    print("✅ Extract complete")
 
     # 3️⃣ Collect segments with original index
-    #    Pattern examples:
-    #    master-...-0.tsb, something-...-22.tsd, file-...-33.ts
-    segments = []
     exts = (".tsd", ".tse", ".tsb", ".ts")
     idx_pat = re.compile(r"-(\d+)\.(?:tsd|tse|tsb|ts)$", re.IGNORECASE)
-
+    segments = []
     for f in os.listdir(extract_dir):
-        fl = f.lower()
-        if fl.endswith(exts):
+        if f.lower().endswith(exts):
             m = idx_pat.search(f)
             if m:
                 orig_idx = int(m.group(1))
             else:
-                # If no index, push to end; will be renumbered densely anyway
-                orig_idx = 10**9
+                orig_idx = 999999
             segments.append((orig_idx, f))
 
     if not segments:
-        raise RuntimeError("❌ No TS-like segments found (.tsd/.tse/.tsb/.ts)")
+        raise RuntimeError("❌ No TS segments found")
 
-    # 4️⃣ Sort by original index, then dense renumber to 0..N-1
+    # 4️⃣ Sort by original numeric index
     segments.sort(key=lambda x: x[0])
 
-    renamed_ts_files = []  # absolute paths of 0.ts..N-1.ts
-    print("🔢 Dense renumbering (original → dense):")
+    # 5️⃣ Dense rename: 0.ts, 1.ts, 2.ts...
+    ts_files = []
+    print("🔢 Dense renumbering:")
     for dense_idx, (orig_idx, fname) in enumerate(segments):
         src = os.path.join(extract_dir, fname)
         dst = os.path.join(extract_dir, f"{dense_idx}.ts")
         shutil.copy(src, dst)
-        if not os.path.exists(dst):
-            raise RuntimeError(f"❌ Rename failed for {src} → {dst}")
-        renamed_ts_files.append(os.path.abspath(dst))
+        ts_files.append(dst)
         print(f"🔄 {fname} (orig {orig_idx}) → {dense_idx}.ts")
 
-    print(f"✅ Total segments renamed: {len(renamed_ts_files)}")
-    # 5️⃣ Verify dense sequence is contiguous starting at 0
-    expected_first = os.path.join(extract_dir, "0.ts")
-    if not os.path.exists(expected_first):
-        raise RuntimeError("❌ Dense sequence check failed: 0.ts not found after renumbering")
+    print(f"✅ Total segments renamed: {len(ts_files)}")
 
-    # 6️⃣ Build concat list from dense sequence
+    # 6️⃣ Build concat list
     list_file = os.path.join(extract_dir, "list.txt")
     with open(list_file, "w") as f:
-        for ts_abs in renamed_ts_files:
-            f.write(f"file '{ts_abs}'\n")
+        for ts in ts_files:
+            f.write(f"file '{os.path.abspath(ts)}'\n")
 
     print("🧾 Concat list preview (first 10 lines):")
     with open(list_file, "r") as f:
         for i, line in enumerate(f):
-            if i >= 10:
-                break
+            if i >= 10: break
             print(line.strip())
 
-    # 7️⃣ Merge with ffmpeg (copy codecs)
-    print("⚡ Merging TS segments...")
+    # 7️⃣ Merge with ffmpeg
     subprocess.run([
         "ffmpeg", "-y",
-        "-f", "concat",
-        "-safe", "0",
+        "-f", "concat", "-safe", "0",
         "-i", list_file,
-        "-c", "copy",
-        output_path
+        "-c", "copy", output_path
     ], check=True)
 
     print("✅ TS merge complete")
