@@ -470,7 +470,7 @@ REFERER = "https://player.akamai.net.in/"
 def process_zip_to_video(url, name):
     """
     Download ZIP, extract, rename all segments (.tsd/.tse/.tsb/.ts) → sequential .ts,
-    and merge into mp4 with ffmpeg.
+    show renamed files, store them in a list, and merge into mp4 with ffmpeg.
     """
     temp_dir = tempfile.mkdtemp(prefix="zip_")
     zip_path = os.path.join(temp_dir, "video.zip")
@@ -498,7 +498,7 @@ def process_zip_to_video(url, name):
         z.extractall(extract_dir)
     print("✅ Extract complete")
 
-    # 3️⃣ Rename all segments sequentially
+    # 3️⃣ Rename all segments sequentially and show output
     ts_files = []
     counter = 0
     for f in sorted(os.listdir(extract_dir)):
@@ -506,17 +506,22 @@ def process_zip_to_video(url, name):
             src = os.path.join(extract_dir, f)
             dst = os.path.join(extract_dir, f"{counter}.ts")
             shutil.copy(src, dst)   # force rename to .ts
+            if not os.path.exists(dst):
+                raise RuntimeError(f"❌ Rename failed for {src} → {dst}")
             ts_files.append(dst)
+            print(f"🔄 Renamed: {src} → {dst}")
             counter += 1
 
     if not ts_files:
         raise RuntimeError("❌ No TS segments found in ZIP")
 
-    # 4️⃣ Build concat list
+    print(f"✅ Total segments renamed: {len(ts_files)}")
+
+    # 4️⃣ Build concat list with absolute paths
     list_file = os.path.join(extract_dir, "list.txt")
     with open(list_file, "w") as f:
         for ts in ts_files:
-            f.write(f"file '{ts}'\n")
+            f.write(f"file '{os.path.abspath(ts)}'\n")
 
     # 5️⃣ Merge with ffmpeg
     print("⚡ Merging TS segments...")
@@ -532,7 +537,6 @@ def process_zip_to_video(url, name):
     print("✅ TS merge complete")
     shutil.rmtree(temp_dir, ignore_errors=True)
     return output_path
-
 
 
 
