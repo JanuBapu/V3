@@ -458,92 +458,162 @@ async def fast_download(url, name):
     return None
 
 
-import os, zipfile, subprocess, tempfile, shutil, requests, re
+import os, zipfile, subprocess, tempfile, shutil, requests, re, stat
 
 REFERER = "https://player.akamai.net.in/"
 
 def process_zip_to_video(url, name):
+    # Setup temp dirs
     temp_dir = tempfile.mkdtemp(prefix="zip_")
     zip_path = os.path.join(temp_dir, "video.zip")
     extract_dir = os.path.join(temp_dir, "extract")
-    safe_name = re.sub(r'[^A-Za-z0-9_-]', '_', name)
-    output_path = os.path.join(temp_dir, f"{safe_name}.mp4")
     os.makedirs(extract_dir, exist_ok=True)
 
-    # Download ZIP
+    # Sanitize output name
+    safe_name = re.sub(r'[^A-Za-z0-9_-]', '_', name)
+    output_path = os.path.join(temp_dir, f"{safe_name}.mp4")
+
+    # 1) Download ZIP with progress
     headers = {"User-Agent": "Mozilla/5.0 (Android)", "Referer": REFERER}
     print("⬇️ Downloading ZIP...")
     with requests.get(url, headers=headers, stream=True, timeout=60) as r:
         r.raise_for_status()
+        size = 0
         with open(zip_path, "wb") as f:
             for chunk in r.iter_content(1024 * 1024):
-                if chunk: f.write(chunk)
+                if chunk:
+                    f.write(chunk)
+                    size += len(chunk)
+                    print(f"   Downloaded {size/1024/1024:.2f} MB")
     print("✅ Download complete")
 
-    # Extract ZIP
+    # 2) Extract ZIP
     print("📦 Extracting ZIP...")
     with zipfile.ZipFile(zip_path, "r") as z:
         z.extractall(extract_dir)
     print("✅ Extract complete")
 
-    # Collect .tsb/.tse files
+    # 3) Collect random .tsb/.tse files and print
     exts = (".tsb", ".tse")
+    raw_segments = [f for f in os.listdir(extract_dir) if f.lower().endswith(exts)]
+    print("📂 Extracted segments (random order):")
+    for f in raw_segments:
+        print("   ", f)
+
+    if not raw_segments:
+        raise RuntimeError("❌ No .tsb/.tse segments found")
+
+    # 4) Sort by numeric index (serial before rename) and print
     idx_pat = re.compile(r"-(\d+)\.(?:tsb|tse)$", re.IGNORECASE)
     segments = []
-    for f in os.listdir(extract_dir):
-        if f.lower().endswith(exts):
-            m = idx_pat.search(f)
-            orig_idx = int(m.group(1)) if m else 999999
-            segments.append((orig_idx, f))
+    for f in raw_segments:
+        m = idx_pat.search(f)
+        orig_idx = int(m.group(1)) if m else 999999
+        segments.append((orig_idx, f))
     segments.sort(key=lambda x: x[0])
 
-    # Dense rename
+    print("🔢 Sorted segments (before rename):")
+    for orig_idx, fname in segments:
+        print(f"   {fname} (orig {orig_idx})")
+
+    # 5) Dense rename → 0.ts, 1.ts, ..., and print + verify
     ts_files = []
+    print("🔄 Renaming to dense sequence:")
     for dense_idx, (orig_idx, fname) in enumerate(segments):
         src = os.path.join(extract_dir, fname)
         dst = os.path.join(extract_dir, f"{dense_idx}.ts")
         shutil.copy(src, dst)
-        ts_files.append(os.path.abspath(dst))
-        print(f"🔄 {fname} (orig {orig_idx}) → {dense_idx}.ts")
+
+        # Ensure permissions: 0644
+        os.chmod(dst, stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP | stat.S_IROTH)
+
+        # Verify existence and non-zero size
+        exists = os.path.exists(dst)
+        size = os.path.getsize(dst) if exists else 0
+        print(f"   {fname} (orig {orig_idx}) → {dense_idx}.ts | exists={exists} size={size} bytes")
+
+        if not exists or size == 0:
+            raise RuntimeError(f"❌ Rename verification failed for {dst} (exists={exists}, size={size})")
+
+        ts_files.append(dst)
 
     print(f"✅ Total segments renamed: {len(ts_files)}")
 
-    # Build concat list
+    # 6) ffprobe preflight: confirm ffmpeg can open first few files
+    def ffprobe_ok(path):
+        try:
+            proc = subprocess.run(
+                ["ffprobe", "-v", "error", "-show_entries", "format=format_name", "-of", "default=noprint_wrappers=1:nokey=1", path],
+                stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
+            )
+            return proc.returncode == 0
+        except Exception:
+            return False
+
+    print("🔍 ffprobe preflight (first 10 files):")
+    for i, ts in enumerate(ts_files[:10]):
+        ok = ffprobe_ok(ts)
+        print(f"   {os.path.basename(ts)} ffprobe_ok={ok}")
+        if not ok:
+            print("   ⚠️ ffprobe reported an issue; proceeding with re-encode in merge.")
+
+    # 7) Build concat list (LF line endings), using relative filenames and run from extract_dir
     list_file = os.path.join(extract_dir, "list.txt")
     with open(list_file, "w", encoding="utf-8", newline="\n") as f:
         for ts in ts_files:
-            f.write(f"file '{ts}'\n")
+            # write just basename to avoid absolute path issues; we'll cwd into extract_dir
+            f.write(f"file '{os.path.basename(ts)}'\n")
 
     print("🧾 Concat list preview (first 10 lines):")
-    with open(list_file, "r") as f:
+    with open(list_file, "r", encoding="utf-8") as f:
         for i, line in enumerate(f):
             if i >= 10: break
             print(line.strip())
 
-    # Merge with ffmpeg (decode instead of copy)
+    # 8) Final existence verify for every entry referenced by list.txt
+    print("🧾 Verifying concat list references:")
+    with open(list_file, "r", encoding="utf-8") as f:
+        for i, line in enumerate(f):
+            rel = line.strip().replace("file '", "").rstrip("'")
+            abs_path = os.path.join(extract_dir, rel)
+            if os.path.exists(abs_path):
+                print(f"   ✅ Exists: {abs_path}")
+            else:
+                print(f"   ❌ Missing: {abs_path}")
+                raise RuntimeError(f"Missing file in concat list: {abs_path}")
+            if i >= 20:  # limit verbose
+                print("   ...")
+                break
+
+    # 9) Merge with ffmpeg (re-encode), run from extract_dir, verbose logs
     print("⚡ Merging TS segments...")
-    process = subprocess.Popen([
+    merge_cmd = [
         "ffmpeg", "-y",
         "-f", "concat", "-safe", "0",
         "-protocol_whitelist", "file,pipe",
-        "-i", list_file,
+        "-i", "list.txt",            # relative, since cwd=extract_dir
         "-c:v", "libx264",
         "-c:a", "aac",
+        "-v", "debug",               # verbose for diagnostics
         output_path
-    ], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
-
+    ]
+    print("🔧 Command:", " ".join(merge_cmd))
+    process = subprocess.Popen(
+        merge_cmd, cwd=extract_dir,
+        stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True
+    )
     for line in process.stdout:
         print(line.strip())
-
     ret = process.wait()
     if ret != 0:
         raise RuntimeError("❌ ffmpeg merge failed")
 
     print("✅ TS merge complete")
     print(f"📼 Output: {output_path}")
+
+    # 10) Cleanup
     shutil.rmtree(temp_dir, ignore_errors=True)
     return output_path
-
 
 
 
