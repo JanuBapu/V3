@@ -464,12 +464,13 @@ import subprocess
 import tempfile
 import shutil
 import requests
+import re
 
 REFERER = "https://player.akamai.net.in/"
 
 def process_zip_to_video(url, name):
     """
-    Download ZIP, extract, rename all segments (.tsd/.tse/.tsb/.ts) → sequential .ts,
+    Download ZIP, extract, rename all segments (.tsd/.tse/.tsb/.ts) → original numeric index .ts,
     show renamed files, store them in a list, and merge into mp4 with ffmpeg.
     """
     temp_dir = tempfile.mkdtemp(prefix="zip_")
@@ -498,29 +499,32 @@ def process_zip_to_video(url, name):
         z.extractall(extract_dir)
     print("✅ Extract complete")
 
-    # 3️⃣ Rename all segments sequentially and show output
+    # 3️⃣ Rename all segments using original numeric index
     ts_files = []
-    counter = 0
-    for f in sorted(os.listdir(extract_dir)):
+    for f in os.listdir(extract_dir):
         if f.lower().endswith((".tsd", ".tse", ".tsb", ".ts")):
             src = os.path.join(extract_dir, f)
-            dst = os.path.join(extract_dir, f"{counter}.ts")
-            shutil.copy(src, dst)   # force rename to .ts
-            if not os.path.exists(dst):
-                raise RuntimeError(f"❌ Rename failed for {src} → {dst}")
+            # extract numeric index from filename
+            m = re.search(r"-(\d+)\.(?:tsd|tse|tsb|ts)$", f, re.IGNORECASE)
+            if m:
+                idx = int(m.group(1))
+            else:
+                # fallback if no number found
+                idx = len(ts_files)
+            dst = os.path.join(extract_dir, f"{idx}.ts")
+            shutil.copy(src, dst)
             ts_files.append(dst)
             print(f"🔄 Renamed: {src} → {dst}")
-            counter += 1
 
     if not ts_files:
         raise RuntimeError("❌ No TS segments found in ZIP")
 
     print(f"✅ Total segments renamed: {len(ts_files)}")
 
-    # 4️⃣ Build concat list with absolute paths
+    # 4️⃣ Build concat list sorted by numeric index
     list_file = os.path.join(extract_dir, "list.txt")
     with open(list_file, "w") as f:
-        for ts in ts_files:
+        for ts in sorted(ts_files, key=lambda x: int(os.path.basename(x).split('.')[0])):
             f.write(f"file '{os.path.abspath(ts)}'\n")
 
     # 5️⃣ Merge with ffmpeg
@@ -537,6 +541,8 @@ def process_zip_to_video(url, name):
     print("✅ TS merge complete")
     shutil.rmtree(temp_dir, ignore_errors=True)
     return output_path
+
+
 
 
 
