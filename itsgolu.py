@@ -464,33 +464,26 @@ import subprocess
 import tempfile
 import shutil
 import re
-
+import requests
 
 REFERER = "https://player.akamai.net.in/"
-
 
 def process_zip_to_video(url, name):
     """
     Download a mobile-style zip (appx), extract, handle m3u8 or .tse/.tsb segments,
     rename for ffmpeg, and merge into mp4.
     """
-    import os, re, zipfile, tempfile, shutil, subprocess, requests
-
-    REFERER = "https://player.akamai.net.in/"
-
-    # 1️⃣ Create temp directories
     temp_dir = tempfile.mkdtemp(prefix="zip_")
     zip_path = os.path.join(temp_dir, "video.zip")
     extract_dir = os.path.join(temp_dir, "extract")
     output_path = os.path.join(temp_dir, f"{name}.mp4")
     os.makedirs(extract_dir, exist_ok=True)
 
-    # 2️⃣ Download ZIP with Referer
+    # 1️⃣ Download ZIP
     headers = {
         "User-Agent": "Mozilla/5.0 (Android)",
         "Referer": REFERER
     }
-
     print("⬇️ Downloading ZIP...")
     with requests.get(url, headers=headers, stream=True, timeout=30) as r:
         r.raise_for_status()
@@ -500,42 +493,47 @@ def process_zip_to_video(url, name):
                     f.write(chunk)
     print("✅ Download complete")
 
-    # 3️⃣ Extract ZIP
+    # 2️⃣ Extract ZIP safely
     print("📦 Extracting ZIP...")
     with zipfile.ZipFile(zip_path, "r") as z:
-        z.extractall(extract_dir)
+        try:
+            z.extractall(extract_dir)
+        except Exception as e:
+            print(f"⚠️ Extraction issue: {e}")
+            # fallback: extract file by file
+            for file in z.namelist():
+                z.extract(file, extract_dir)
     print("✅ Extract complete")
 
-    # 4️⃣ Find m3u8 (TOP PRIORITY)
+    # 3️⃣ Find m3u8
     m3u8_path = None
     for f in os.listdir(extract_dir):
         if f.lower().endswith(".m3u8"):
             m3u8_path = os.path.join(extract_dir, f)
             break
 
-    # 5️⃣ Detect .tse / .tsb / .ts segments and sort by serial
+    # 4️⃣ Detect segments
     segments = []
     for f in os.listdir(extract_dir):
-        if f.lower().endswith((".tse", ".tsb", ".ts")):  # case-insensitive
-            m = re.search(r"-(\d+)\.(tse|tsb|ts)$", f, re.IGNORECASE)
-            if m:
-                segments.append((int(m.group(1)), f))
+        if f.lower().endswith((".tse", ".tsb", ".ts")):
+            m = re.search(r"(\d+)", f)  # extract any number
+            idx = int(m.group(1)) if m else len(segments)
+            segments.append((idx, f))
 
     segments.sort(key=lambda x: x[0])
 
-    # 6️⃣ Rename / copy segments to .ts for ffmpeg
+    # 5️⃣ Rename to .ts
     ts_files = []
     for idx, fname in segments:
         src = os.path.join(extract_dir, fname)
         dst = os.path.join(extract_dir, f"{idx}.ts")
-        if not os.path.exists(dst):
-            shutil.copy(src, dst)
+        shutil.copy(src, dst)
         ts_files.append(dst)
 
-    # 7️⃣ Try m3u8 first if available
+    # 6️⃣ Try m3u8 first
     if m3u8_path:
         try:
-            print(f"🎬 Converting m3u8 → mp4...")
+            print("🎬 Converting m3u8 → mp4...")
             subprocess.run([
                 "ffmpeg", "-y",
                 "-allowed_extensions", "ALL",
@@ -550,8 +548,8 @@ def process_zip_to_video(url, name):
         except subprocess.CalledProcessError:
             print("⚠️ m3u8 failed, falling back to TS merge")
 
-    # 8️⃣ Merge TS segments if m3u8 failed or not present
-    print(f"⚡ Merging TS segments (0 → n)...")
+    # 7️⃣ Merge TS segments
+    print("⚡ Merging TS segments...")
     list_file = os.path.join(extract_dir, "list.txt")
     with open(list_file, "w") as f:
         for ts in ts_files:
@@ -569,6 +567,7 @@ def process_zip_to_video(url, name):
     print("✅ TS merge complete")
     shutil.rmtree(temp_dir, ignore_errors=True)
     return output_path
+    
 
 async def download_video(url, cmd, name):
     # Special cases first
