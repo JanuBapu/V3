@@ -461,20 +461,76 @@ async def fast_download(url, name):
 import os, re, shutil, subprocess, tempfile, zipfile, requests
 from Crypto.Cipher import AES
 
-# Define REFERER globally or pass it in
-REFERER = "https://player.akamai.net.in/"   # <-- replace with actual referer
+# Provided referer
+REFERER = "https://player.akamai.net.in/"
 
 def aes128_cbc_decrypt(data: bytes, key: bytes, iv: bytes) -> bytes:
     """AES-128 CBC decrypt with PKCS7 padding removal."""
     cipher = AES.new(key, AES.MODE_CBC, iv)
     dec = cipher.decrypt(data)
-    # remove PKCS7 padding
     pad_len = dec[-1]
     if pad_len < 1 or pad_len > 16:
-        raise RuntimeError("❌ Invalid padding in decrypted data")
+        raise RuntimeError("❌ Invalid PKCS7 padding")
     return dec[:-pad_len]
 
+def _big_endian_iv_from_index(idx: int) -> bytes:
+    """Optional fallback IV: 16-byte big-endian representation of index."""
+    return idx.to_bytes(16, byteorder="big")
+
+def _resolve_key_bytes(key_uri: str, extract_dir: str, headers: dict, m3u8_lines: list) -> bytes:
+    print(f"🔎 Resolving key URI: {key_uri}")
+
+    # Case 1: Absolute URL
+    if key_uri.startswith("http://") or key_uri.startswith("https://"):
+        print("   → absolute URL, downloading key...")
+        resp = requests.get(key_uri, headers=headers, timeout=30)
+        resp.raise_for_status()
+        return resp.content
+
+    # Case 2: Local file in extracted ZIP
+    candidate_path = os.path.join(extract_dir, key_uri)
+    if os.path.exists(candidate_path) and os.path.isfile(candidate_path):
+        print(f"   → local key file found: {candidate_path}")
+        return open(candidate_path, "rb").read()
+
+    # Case 3: Discover signed key URL inside m3u8 or companion files
+    print("   → searching for signed key URL inside m3u8/extract dir...")
+    # Search lines for dl wrapper or static-db host
+    signed_url = None
+    url_pat = re.compile(r'(https?://\S+)')
+    for line in m3u8_lines:
+        m = url_pat.search(line)
+        if m:
+            u = m.group(1)
+            if "appxsignurl.vercel.app" in u or "static-db-v2.appx.co.in" in u or "appx.co.in" in u:
+                signed_url = u
+                break
+    if not signed_url:
+        # Scan all text files in extract_dir
+        for fname in os.listdir(extract_dir):
+            if fname.lower().endswith((".txt", ".m3u8", ".json")):
+                p = os.path.join(extract_dir, fname)
+                try:
+                    text = open(p, "r", encoding="utf-8", errors="ignore").read()
+                except Exception:
+                    continue
+                m = url_pat.search(text)
+                if m:
+                    u = m.group(1)
+                    if "appxsignurl.vercel.app" in u or "static-db-v2.appx.co.in" in u or "appx.co.in" in u:
+                        signed_url = u
+                        break
+
+    if signed_url:
+        print(f"   → discovered signed key URL: {signed_url}")
+        resp = requests.get(signed_url, headers=headers, timeout=30)
+        resp.raise_for_status()
+        return resp.content
+
+    raise RuntimeError("❌ Could not resolve key URI to a valid URL or file")
+
 def process_zip_to_video(url: str, name: str) -> str:
+    print("⚙️ Starting process_zip_to_video")
     temp_dir = tempfile.mkdtemp(prefix="zip_")
     zip_path = os.path.join(temp_dir, "video.zip")
     extract_dir = os.path.join(temp_dir, "extract")
@@ -484,22 +540,30 @@ def process_zip_to_video(url: str, name: str) -> str:
 
     safe_name = re.sub(r'[^A-Za-z0-9_-]', '_', name)
     output_path = os.path.join(temp_dir, f"{safe_name}.mp4")
+    print(f"📁 Temp dir: {temp_dir}")
+    print(f"📦 ZIP path: {zip_path}")
+    print(f"📂 Extract dir: {extract_dir}")
+    print(f"📂 Decrypt dir: {decrypt_dir}")
+    print(f"🎯 Output path: {output_path}")
 
     # 1️⃣ Download ZIP
     headers = {"User-Agent": "Mozilla/5.0 (Android)", "Referer": REFERER}
-    print("⬇️ Downloading ZIP...")
+    print(f"⬇️ Downloading ZIP from: {url}")
     with requests.get(url, headers=headers, stream=True, timeout=60) as r:
         r.raise_for_status()
         with open(zip_path, "wb") as f:
-            for chunk in r.iter_content(1024 * 1024):
-                if chunk: f.write(chunk)
-    print("✅ ZIP downloaded:", zip_path)
+            for i, chunk in enumerate(r.iter_content(1024 * 1024), start=1):
+                if chunk:
+                    f.write(chunk)
+                    if i % 10 == 0:
+                        print(f"   ... downloaded {i} MB")
+    print("✅ ZIP downloaded")
 
     # 2️⃣ Extract ZIP
     print("📦 Extracting ZIP...")
     with zipfile.ZipFile(zip_path, "r") as z:
         z.extractall(extract_dir)
-    print("✅ Extracted to:", extract_dir)
+    print("✅ Extracted")
 
     # 3️⃣ Find .m3u8 file
     m3u8_file = None
@@ -509,60 +573,86 @@ def process_zip_to_video(url: str, name: str) -> str:
             break
     if not m3u8_file:
         raise RuntimeError("❌ No .m3u8 file found in ZIP")
-    print("📄 Found m3u8:", m3u8_file)
+    print(f"📄 Found m3u8: {m3u8_file}")
+
+    m3u8_lines = open(m3u8_file, "r", encoding="utf-8", errors="ignore").read().splitlines()
+    print(f"🧾 m3u8 lines: {len(m3u8_lines)}")
 
     # 4️⃣ Parse key URI and IV from .m3u8
-    key_url, iv = None, b"\x00" * 16
-    with open(m3u8_file, "r") as f:
-        for line in f:
-            if line.startswith("#EXT-X-KEY"):
-                m = re.search(r'URI="([^"]+)"', line)
-                if m: key_url = m.group(1)
-                iv_match = re.search(r'IV=0x([0-9A-Fa-f]+)', line)
-                if iv_match:
-                    iv_hex = iv_match.group(1)
-                    iv = bytes.fromhex(iv_hex.zfill(32))  # pad to 16 bytes
-                break
+    key_url = None
+    iv = b"\x00" * 16
+    print("🔍 Parsing #EXT-X-KEY from m3u8...")
+    for line in m3u8_lines:
+        if line.startswith("#EXT-X-KEY"):
+            m = re.search(r'URI="([^"]+)"', line)
+            if m:
+                key_url = m.group(1)
+            iv_match = re.search(r'IV=0x([0-9A-Fa-f]+)', line)
+            if iv_match:
+                iv_hex = iv_match.group(1)
+                iv = bytes.fromhex(iv_hex.zfill(32))
+            break
     if not key_url:
         raise RuntimeError("❌ No key URI found in m3u8")
-    print("🔑 Key URL:", key_url)
-    print("🔑 IV:", iv.hex())
+    print(f"🔑 Raw key URI: {key_url}")
+    print(f"🔑 Parsed IV: {iv.hex()}")
 
-    # 5️⃣ Download key
-    key_data = requests.get(key_url, headers=headers).content
+    # 5️⃣ Resolve and download/read key bytes (handles absolute URL, local file, signed wrapper)
+    print("🔑 Resolving/downloading key bytes...")
+    key_data = _resolve_key_bytes(key_url, extract_dir, headers, m3u8_lines)
+    print(f"   Key bytes: {len(key_data)}")
     if len(key_data) != 16:
         raise RuntimeError("❌ Invalid AES-128 key length")
-    print("✅ Key downloaded")
+    print("✅ Key ready")
 
-    # 6️⃣ Decrypt .tsb/.tse chunks
+    # 6️⃣ Arrange and decrypt segments (.tsb/.tse)
+    print("🧩 Scanning encrypted segments...")
     exts = (".tsb", ".tse")
-    idx_pat = re.compile(r"-(\d+)\.(?:tsb|tse)$", re.IGNORECASE)
+    any_idx = re.compile(r'(\d+)')
+    suffix_idx = re.compile(r'-(\d+)\.(?:tsb|tse)$', re.IGNORECASE)
     segments = []
-    for f in os.listdir(extract_dir):
-        if f.lower().endswith(exts):
-            m = idx_pat.search(f)
-            orig_idx = int(m.group(1)) if m else 999999
-            segments.append((orig_idx, f))
+    for fname in os.listdir(extract_dir):
+        fl = fname.lower()
+        if fl.endswith(exts):
+            m2 = suffix_idx.search(fname)
+            if m2:
+                orig_idx = int(m2.group(1))
+            else:
+                m1 = any_idx.search(fname)
+                orig_idx = int(m1.group(1)) if m1 else 999999
+            segments.append((orig_idx, fname))
+            print(f"   found: {fname} (orig_idx={orig_idx})")
+    if not segments:
+        raise RuntimeError("❌ No .tsb/.tse segments found")
     segments.sort(key=lambda x: x[0])
+    print(f"✅ Total segments: {len(segments)}")
+    print("🗂 Sorted order preview:")
+    for i, (orig_idx, fname) in enumerate(segments[:10]):
+        print(f"   {i:03d}: {fname} (orig_idx={orig_idx})")
 
     ts_files = []
     for dense_idx, (orig_idx, fname) in enumerate(segments):
         src_path = os.path.join(extract_dir, fname)
         enc = open(src_path, "rb").read()
-        dec = aes128_cbc_decrypt(enc, key_data, iv)
+        # Optional: if IV not specified, fallback to HLS-style per-segment IV
+        cur_iv = iv if iv != (b"\x00" * 16) else _big_endian_iv_from_index(orig_idx)
+        dec = aes128_cbc_decrypt(enc, key_data, cur_iv)
         dst_path = os.path.join(decrypt_dir, f"{dense_idx}.ts")
         open(dst_path, "wb").write(dec)
         ts_files.append(dst_path)
-        print(f"🔓 {fname} → {dense_idx}.ts")
+        print(f"🔓 Decrypted: {fname} (orig_idx={orig_idx}) → {dense_idx}.ts | IV={cur_iv.hex()}")
 
-    # 7️⃣ Build concat list
+    # 7️⃣ Build concat list and print entries
     list_file = os.path.join(decrypt_dir, "list.txt")
+    print(f"📑 Building concat list: {list_file}")
     with open(list_file, "w") as f:
         for ts in ts_files:
-            f.write(f"file '{os.path.basename(ts)}'\n")
-    print("📑 Concat list built:", list_file)
+            entry = os.path.basename(ts)
+            f.write(f"file '{entry}'\n")
+            print(f"   list entry: {entry}")
+    print("✅ Concat list ready")
 
-    # 8️⃣ Merge with ffmpeg
+    # 8️⃣ Merge with ffmpeg (print full output)
     cmd = [
         "ffmpeg", "-y",
         "-f", "concat", "-safe", "0",
@@ -572,12 +662,19 @@ def process_zip_to_video(url: str, name: str) -> str:
         output_path
     ]
     print("🎬 Running ffmpeg merge...")
-    subprocess.run(cmd, cwd=decrypt_dir, check=True)
+    proc = subprocess.run(cmd, cwd=decrypt_dir, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+    print(proc.stdout)
+    if proc.returncode != 0:
+        raise RuntimeError("❌ ffmpeg merge failed")
+
     print("✅ Video created:", output_path)
 
-    # Cleanup
+    # Cleanup (keep for inspection: comment out if you want artifacts)
     shutil.rmtree(temp_dir, ignore_errors=True)
+    print("🧹 Cleaned up temp dir")
     return output_path
+
+
 
 async def download_video(url, cmd, name):
     # Special cases first
