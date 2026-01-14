@@ -456,7 +456,6 @@ async def fast_download(url, name):
             await asyncio.sleep(3)
     
     return None
-
 def process_zip_to_video(url: str, name: str) -> str:
     import os, re, zipfile, tempfile, shutil, subprocess, requests, time
     from Crypto.Cipher import AES
@@ -467,7 +466,7 @@ def process_zip_to_video(url: str, name: str) -> str:
     print(f"🎬 Processing: {name}")
     print("==============================")
 
-    # ───────────────── TEMP DIR ─────────────────
+    # ───────────── TEMP DIR ─────────────
     print("📁 Creating temp directories...")
     tmp = tempfile.mkdtemp(prefix="zip_")
     zip_path = os.path.join(tmp, "video.zip")
@@ -479,20 +478,19 @@ def process_zip_to_video(url: str, name: str) -> str:
     safe_name = re.sub(r'[^A-Za-z0-9_-]', '_', name)
     out_mp4 = os.path.join(tmp, safe_name + ".mp4")
 
-    # ───────────────── DOWNLOAD ─────────────────
+    # ───────────── DOWNLOAD ─────────────
     print("⬇️ Downloading ZIP (live progress)...")
-
     r = requests.get(
         url,
         headers={"User-Agent": "Mozilla/5.0", "Referer": REFERER},
         stream=True,
-        timeout=(10, 15)
+        timeout=(10, 20)
     )
     r.raise_for_status()
 
     total = int(r.headers.get("content-length", 0))
     downloaded = 0
-    last_time = time.time()
+    last_show = time.time()
 
     with open(zip_path, "wb") as f:
         for chunk in r.iter_content(chunk_size=256 * 1024):  # 256KB
@@ -501,8 +499,8 @@ def process_zip_to_video(url: str, name: str) -> str:
             f.write(chunk)
             downloaded += len(chunk)
 
-            if time.time() - last_time > 0.5:
-                last_time = time.time()
+            if time.time() - last_show > 0.5:
+                last_show = time.time()
                 if total:
                     pct = downloaded * 100 // total
                     print(f"\r⬇️ {downloaded/1024/1024:.2f} MB / "
@@ -512,13 +510,13 @@ def process_zip_to_video(url: str, name: str) -> str:
 
     print("\n✅ ZIP downloaded successfully")
 
-    # ───────────────── EXTRACT ─────────────────
+    # ───────────── EXTRACT ─────────────
     print("📦 Extracting ZIP...")
     with zipfile.ZipFile(zip_path) as z:
         z.extractall(extract_dir)
     print("✅ Extract complete")
 
-    # ───────────────── M3U8 ─────────────────
+    # ───────────── FIND M3U8 ─────────────
     print("🔍 Searching m3u8...")
     m3u8 = None
     for root, _, files in os.walk(extract_dir):
@@ -528,19 +526,19 @@ def process_zip_to_video(url: str, name: str) -> str:
                 break
     if not m3u8:
         raise RuntimeError("❌ m3u8 not found")
-    print(f"✅ m3u8 found: {os.path.basename(m3u8)}")
 
+    print(f"✅ m3u8 found: {os.path.basename(m3u8)}")
     lines = open(m3u8, encoding="utf-8", errors="ignore").read().splitlines()
 
-    # ───────────────── KEY + IV ─────────────────
+    # ───────────── KEY + IV ─────────────
     print("🔑 Parsing KEY & IV...")
     key_uri, iv = None, None
     for l in lines:
         if l.startswith("#EXT-X-KEY"):
             key_uri = re.search(r'URI="([^"]+)"', l).group(1)
-            iv_match = re.search(r'IV=0x([0-9A-Fa-f]+)', l)
-            if iv_match:
-                iv = bytes.fromhex(iv_match.group(1))
+            iv_m = re.search(r'IV=0x([0-9A-Fa-f]+)', l)
+            if iv_m:
+                iv = bytes.fromhex(iv_m.group(1))
             break
 
     if not key_uri:
@@ -552,31 +550,50 @@ def process_zip_to_video(url: str, name: str) -> str:
 
     print(f"✅ Key URI: {key_uri}")
 
-    # ───────────────── LOAD KEY ─────────────────
+    # ───────────── LOAD KEY (FINAL LOGIC) ─────────────
     print("⬇️ Loading key...")
     key = None
 
+    # CASE 1: direct URL
     if key_uri.startswith("http"):
-        print("🌐 Key from URL")
+        print("🌐 Key from direct URL")
         key = requests.get(key_uri, headers={
             "User-Agent": "Mozilla/5.0",
             "Referer": REFERER
         }).content
-    else:
-        print("🔍 Searching key inside ZIP folders...")
+
+    # CASE 2: search inside ZIP
+    if key is None:
+        print("🔍 Searching key inside ZIP...")
         for root, _, files in os.walk(extract_dir):
             if key_uri in files:
                 key_path = os.path.join(root, key_uri)
-                print(f"📁 Key found: {key_path}")
+                print(f"📁 Key found in ZIP: {key_path}")
                 key = open(key_path, "rb").read()
                 break
 
-        if key is None:
-            raise RuntimeError(f"❌ Local key not found anywhere: {key_uri}")
+    # CASE 3: BASE URL + key filename (🔥 YOUR CASE 🔥)
+    if key is None:
+        print("🌐 Trying BASE URL key fetch...")
+        base_url = url.split("?")[0]              # remove query
+        base_dir = base_url.rsplit("/", 1)[0]     # encrypted-xxxx/
+        key_url = f"{base_dir}/{key_uri}"
+        print(f"🔑 Trying key URL: {key_url}")
 
-    print("✅ Key loaded")
+        resp = requests.get(key_url, headers={
+            "User-Agent": "Mozilla/5.0",
+            "Referer": REFERER
+        }, timeout=20)
 
-    # ───────────────── SEGMENTS ─────────────────
+        if resp.status_code == 200 and len(resp.content) == 16:
+            key = resp.content
+            print("✅ Key fetched from BASE URL")
+        else:
+            raise RuntimeError("❌ Key not found (all methods failed)")
+
+    print("✅ Key loaded successfully")
+
+    # ───────────── SEGMENTS ─────────────
     print("📄 Collecting segments...")
     segments = []
     for root, _, files in os.walk(extract_dir):
@@ -592,7 +609,7 @@ def process_zip_to_video(url: str, name: str) -> str:
     segments.sort(key=lambda x: x[0])
     print(f"✅ Total segments: {len(segments)}")
 
-    # ───────────────── DECRYPT ─────────────────
+    # ───────────── DECRYPT ─────────────
     print("🔓 Decrypting segments...")
     cipher = AES.new(key, AES.MODE_CBC, iv)
     total_seg = len(segments)
@@ -605,7 +622,7 @@ def process_zip_to_video(url: str, name: str) -> str:
 
     print("\n✅ Decryption complete")
 
-    # ───────────────── CONCAT ─────────────────
+    # ───────────── CONCAT ─────────────
     print("📝 Creating concat list...")
     list_path = os.path.join(decrypt_dir, "list.txt")
     with open(list_path, "w") as f:
@@ -613,7 +630,7 @@ def process_zip_to_video(url: str, name: str) -> str:
             f.write(f"file '{i}.ts'\n")
     print("✅ list.txt created")
 
-    # ───────────────── MERGE ─────────────────
+    # ───────────── MERGE ─────────────
     print("🎞️ Merging video (ffmpeg)...")
     subprocess.run([
         "ffmpeg", "-y",
@@ -629,7 +646,6 @@ def process_zip_to_video(url: str, name: str) -> str:
 
     print(f"🎉 DONE: {safe_name}.mp4\n")
     return safe_name + ".mp4"
-
 
 
 
