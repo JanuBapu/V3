@@ -458,14 +458,15 @@ async def fast_download(url, name):
     return None
     
 def process_zip_to_video(url: str, name: str) -> str:
-    import os, re, zipfile, tempfile, shutil, subprocess, requests, base64
-    from urllib.parse import urlparse, parse_qs
+    import os, re, zipfile, tempfile, shutil, subprocess, requests
     from Crypto.Cipher import AES
+    from urllib.parse import urljoin, urlparse
 
     REFERER = "https://player.akamai.net.in/"
-    CHUNK = 8 * 1024 * 1024  # 8MB (FAST)
-
-    print("🚀 Starting process...")
+    HEADERS = {
+        "User-Agent": "Mozilla/5.0",
+        "Referer": REFERER
+    }
 
     tmp = tempfile.mkdtemp(prefix="zip_")
     zip_path = os.path.join(tmp, "video.zip")
@@ -478,159 +479,163 @@ def process_zip_to_video(url: str, name: str) -> str:
     safe_name = re.sub(r'[^A-Za-z0-9_-]', '_', name)
     out_mp4 = os.path.join(tmp, safe_name + ".mp4")
 
-    # ================= DOWNLOAD ZIP =================
-    print("⬇️ Downloading ZIP...")
-    sess = requests.Session()
-    r = sess.get(url, headers={
-        "User-Agent": "Mozilla/5.0",
-        "Referer": REFERER
-    }, stream=True, timeout=60)
-    r.raise_for_status()
+    try:
+        # ==========================================================
+        # 1) FAST ZIP DOWNLOAD WITH PROGRESS
+        # ==========================================================
+        print("⬇️ Downloading ZIP...")
+        r = requests.get(url, headers=HEADERS, stream=True, timeout=60)
+        r.raise_for_status()
 
-    total = int(r.headers.get("Content-Length", 0))
-    done = 0
+        total = int(r.headers.get("content-length", 0))
+        done = 0
 
-    with open(zip_path, "wb") as f:
-        for chunk in r.iter_content(CHUNK):
-            if not chunk:
-                continue
-            f.write(chunk)
-            done += len(chunk)
-            if total:
-                pct = done * 100 / total
-                print(f"⬇️ {done/1024/1024:.2f} MB / {total/1024/1024:.2f} MB ({pct:.0f}%)")
+        with open(zip_path, "wb") as f:
+            for chunk in r.iter_content(1024 * 1024 * 4):  # 4MB chunk
+                if chunk:
+                    f.write(chunk)
+                    done += len(chunk)
+                    if total:
+                        percent = done * 100 // total
+                        print(f"⬇️ {done/1024/1024:.2f} MB / {total/1024/1024:.2f} MB ({percent}%)")
 
-    print("✅ ZIP downloaded successfully")
+        print("✅ ZIP downloaded successfully")
 
-    # ================= EXTRACT =================
-    print("📦 Extracting ZIP...")
-    with zipfile.ZipFile(zip_path) as z:
-        z.extractall(extract_dir)
-    print("✅ Extract complete")
+        # ==========================================================
+        # 2) EXTRACT ZIP
+        # ==========================================================
+        print("📦 Extracting ZIP...")
+        with zipfile.ZipFile(zip_path) as z:
+            z.extractall(extract_dir)
+        print("✅ Extract complete")
 
-    # ================= FIND M3U8 =================
-    print("🔍 Searching m3u8...")
-    m3u8 = None
-    for root, _, files in os.walk(extract_dir):
-        for f in files:
+        # ==========================================================
+        # 3) FIND M3U8
+        # ==========================================================
+        print("🔍 Searching m3u8...")
+        m3u8 = None
+        for f in os.listdir(extract_dir):
             if f.endswith(".m3u8"):
-                m3u8 = os.path.join(root, f)
+                m3u8 = os.path.join(extract_dir, f)
                 break
-    if not m3u8:
-        raise RuntimeError("❌ m3u8 not found")
+        if not m3u8:
+            raise RuntimeError("❌ m3u8 not found")
 
-    print(f"✅ m3u8 found: {os.path.basename(m3u8)}")
-    lines = open(m3u8, encoding="utf-8", errors="ignore").read().splitlines()
+        print(f"✅ m3u8 found: {os.path.basename(m3u8)}")
+        lines = open(m3u8, encoding="utf-8", errors="ignore").read().splitlines()
 
-    # ================= PARSE KEY & IV =================
-    print("🔑 Parsing KEY & IV...")
-    key_uri = None
-    iv = None
+        # ==========================================================
+        # 4) PARSE KEY URI + IV
+        # ==========================================================
+        print("🔑 Parsing KEY & IV...")
+        key_uri, iv = None, None
 
-    for l in lines:
-        if l.startswith("#EXT-X-KEY"):
-            key_uri = re.search(r'URI="([^"]+)"', l).group(1)
-            iv_match = re.search(r'IV=0x([0-9A-Fa-f]+)', l)
-            iv = bytes.fromhex(iv_match.group(1)) if iv_match else bytes(16)
-            break
-
-    if not key_uri:
-        raise RuntimeError("❌ KEY not found in m3u8")
-
-    print(f"✅ Key URI: {key_uri}")
-
-    # ================= LOAD KEY (ALL LOGIC) =================
-    print("⬇️ Loading key...")
-    key = None
-
-    # CASE 1: direct URL
-    if key_uri.startswith("http"):
-        print("🌐 Key from direct URL")
-        key = sess.get(key_uri, headers={
-            "User-Agent": "Mozilla/5.0",
-            "Referer": REFERER
-        }).content
-
-    # CASE 2: search inside ZIP
-    if key is None:
-        print("🔍 Searching key inside ZIP...")
-        for root, _, files in os.walk(extract_dir):
-            if key_uri in files:
-                key = open(os.path.join(root, key_uri), "rb").read()
-                print("📁 Key found inside ZIP")
+        for l in lines:
+            if l.startswith("#EXT-X-KEY"):
+                key_uri = re.search(r'URI="([^"]+)"', l).group(1)
+                iv_hex = re.search(r'IV=0x([0-9A-Fa-f]+)', l)
+                if iv_hex:
+                    iv = bytes.fromhex(iv_hex.group(1))
                 break
 
-    # CASE 3: BASE URL
-    if key is None:
-        print("🌐 Trying BASE URL...")
-        base_url = url.split("?")[0].rsplit("/", 1)[0]
-        key_url = f"{base_url}/{key_uri}"
-        print(f"🔑 Trying: {key_url}")
-        r = sess.get(key_url, headers={"Referer": REFERER}, timeout=20)
-        if r.status_code == 200 and len(r.content) == 16:
-            key = r.content
+        if not key_uri:
+            raise RuntimeError("❌ Key URI not found")
 
-    # CASE 4: URLPrefix BASE64 (🔥 FINAL FIX 🔥)
-    if key is None:
-        print("🔓 Decoding URLPrefix...")
-        parsed = urlparse(url)
-        qs = parse_qs(parsed.query)
-        if "URLPrefix" in qs:
-            decoded = base64.b64decode(qs["URLPrefix"][0]).decode()
-            key_base = decoded.rsplit("/", 1)[0]
-            key_url = f"{key_base}/{key_uri}"
-            print(f"🔑 Trying decoded key URL: {key_url}")
-            r = sess.get(key_url, headers={"Referer": REFERER}, timeout=20)
-            if r.status_code == 200 and len(r.content) == 16:
+        print(f"✅ Key URI: {key_uri}")
+
+        # ==========================================================
+        # 5) RESOLVE KEY (LOCAL → RELATIVE → ABSOLUTE)
+        # ==========================================================
+        print("⬇️ Loading key...")
+        key = None
+
+        # (a) local key inside ZIP
+        local_key = os.path.join(extract_dir, key_uri)
+        if os.path.exists(local_key):
+            key = open(local_key, "rb").read()
+            print("🔑 Key found locally")
+
+        # (b) relative to ZIP base
+        if key is None:
+            base = url.rsplit("/", 1)[0] + "/"
+            try_url = urljoin(base, key_uri)
+            print(f"🌐 Trying key URL: {try_url}")
+            r = requests.get(try_url, headers=HEADERS, timeout=15)
+            if r.ok:
                 key = r.content
-                print("✅ Key fetched using URLPrefix")
 
-    if key is None:
-        raise RuntimeError("❌ Key not found (all methods failed)")
+        # (c) absolute URI
+        if key is None and key_uri.startswith("http"):
+            r = requests.get(key_uri, headers=HEADERS, timeout=15)
+            if r.ok:
+                key = r.content
 
-    print("✅ Key loaded successfully")
+        if key is None:
+            raise RuntimeError("❌ Key not found (all methods failed)")
 
-    # ================= COLLECT SEGMENTS =================
-    segments = []
-    for f in os.listdir(extract_dir):
-        if f.lower().endswith((".ts", ".tsb", ".tse")):
-            idx = int(re.search(r'(\d+)', f).group(1))
-            segments.append((idx, f))
-    segments.sort()
+        print("✅ Key loaded")
 
-    print(f"🎞️ Total segments: {len(segments)}")
+        # ==========================================================
+        # 6) COLLECT TS SEGMENTS
+        # ==========================================================
+        segments = []
+        for f in os.listdir(extract_dir):
+            if f.lower().endswith((".ts", ".tsb", ".tse")):
+                m = re.search(r'(\d+)', f)
+                if m:
+                    segments.append((int(m.group(1)), f))
 
-    # ================= DECRYPT =================
-    print("🔓 Decrypting segments...")
-    for i, (_, f) in enumerate(segments):
-        cipher = AES.new(key, AES.MODE_CBC, iv)
-        enc = open(os.path.join(extract_dir, f), "rb").read()
-        dec = cipher.decrypt(enc)
-        open(os.path.join(decrypt_dir, f"{i}.ts"), "wb").write(dec)
+        segments.sort(key=lambda x: x[0])
+        print(f"📄 Total segments: {len(segments)}")
 
-        if i % 20 == 0:
-            print(f"🔓 Decrypted {i+1}/{len(segments)}")
+        # ==========================================================
+        # 7) DECRYPT (🔥 CORRECT LOGIC – NO PADDING ERROR)
+        # ==========================================================
+        print("🔓 Decrypting segments...")
+        total_seg = len(segments)
 
-    # ================= CONCAT =================
-    with open(os.path.join(decrypt_dir, "list.txt"), "w") as f:
-        for i in range(len(segments)):
-            f.write(f"file '{i}.ts'\n")
+        for i, (_, f) in enumerate(segments):
+            cipher = AES.new(key, AES.MODE_CBC, iv)  # 🔥 NEW cipher every segment
+            enc = open(os.path.join(extract_dir, f), "rb").read()
+            dec = cipher.decrypt(enc)
 
-    print("🎬 Merging video (ffmpeg)...")
-    subprocess.run([
-        "ffmpeg", "-y",
-        "-f", "concat", "-safe", "0",
-        "-i", "list.txt",
-        "-c", "copy",
-        out_mp4
-    ], cwd=decrypt_dir, check=True)
+            # 🔥 remove PKCS7 padding ONLY for last segment
+            if i == total_seg - 1:
+                pad = dec[-1]
+                if 1 <= pad <= 16:
+                    dec = dec[:-pad]
 
-    shutil.move(out_mp4, os.getcwd())
-    shutil.rmtree(tmp, ignore_errors=True)
+            open(os.path.join(decrypt_dir, f"{i}.ts"), "wb").write(dec)
 
-    print("✅ VIDEO CREATED SUCCESSFULLY")
-    return safe_name + ".mp4"
+            if i % 20 == 0 or i == total_seg - 1:
+                print(f"🔓 Decrypted {i+1}/{total_seg}")
 
+        # ==========================================================
+        # 8) CONCAT LIST
+        # ==========================================================
+        with open(os.path.join(decrypt_dir, "list.txt"), "w") as f:
+            for i in range(total_seg):
+                f.write(f"file '{i}.ts'\n")
+
+        # ==========================================================
+        # 9) MERGE USING FFMPEG
+        # ==========================================================
+        print("🎬 Creating final MP4...")
+        subprocess.run([
+            "ffmpeg", "-y",
+            "-f", "concat", "-safe", "0",
+            "-i", "list.txt",
+            "-c", "copy",
+            out_mp4
+        ], cwd=decrypt_dir, check=True)
+
+        shutil.move(out_mp4, os.getcwd())
+        print("✅ Video created successfully")
+
+        return safe_name + ".mp4"
+
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
 
 async def download_video(url, cmd, name):
     # Special cases first
