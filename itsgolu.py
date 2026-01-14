@@ -463,6 +463,7 @@ def process_zip_to_video(url: str, name: str) -> str:
 
     REFERER = "https://player.akamai.net.in/"
 
+    print("📁 Creating temp directories...")
     tmp = tempfile.mkdtemp(prefix="zip_")
     zip_path = os.path.join(tmp, "video.zip")
     extract_dir = os.path.join(tmp, "extract")
@@ -474,32 +475,47 @@ def process_zip_to_video(url: str, name: str) -> str:
     safe_name = re.sub(r'[^A-Za-z0-9_-]', '_', name)
     out_mp4 = os.path.join(tmp, safe_name + ".mp4")
 
-    # 1) ZIP download (referer ke sath)
+    # 1) ZIP download
+    print("⬇️ Downloading ZIP...")
     r = requests.get(url, headers={
         "User-Agent": "Mozilla/5.0",
         "Referer": REFERER
     }, stream=True, timeout=60)
     r.raise_for_status()
+
+    total = int(r.headers.get("content-length", 0))
+    downloaded = 0
+
     with open(zip_path, "wb") as f:
         for c in r.iter_content(1024 * 1024):
-            f.write(c)
+            if c:
+                f.write(c)
+                downloaded += len(c)
+                if total:
+                    print(f"\r⬇️ Downloaded: {downloaded * 100 // total}%", end="")
+    print("\n✅ ZIP downloaded")
 
     # 2) Extract
+    print("📦 Extracting ZIP...")
     with zipfile.ZipFile(zip_path) as z:
         z.extractall(extract_dir)
+    print("✅ Extract done")
 
     # 3) m3u8 find
+    print("🔍 Searching m3u8 file...")
     m3u8 = None
     for f in os.listdir(extract_dir):
         if f.endswith(".m3u8"):
             m3u8 = os.path.join(extract_dir, f)
             break
     if not m3u8:
-        raise RuntimeError("m3u8 not found")
+        raise RuntimeError("❌ m3u8 not found")
+    print(f"✅ m3u8 found: {os.path.basename(m3u8)}")
 
     lines = open(m3u8, encoding="utf-8", errors="ignore").read().splitlines()
 
     # 4) KEY + IV parse
+    print("🔑 Searching key & IV...")
     key_url = None
     iv = None
     for l in lines:
@@ -509,35 +525,49 @@ def process_zip_to_video(url: str, name: str) -> str:
             break
 
     if not key_url:
-        raise RuntimeError("key not found")
+        raise RuntimeError("❌ Key not found")
+
+    print("✅ Key URL found")
 
     # 5) Key download
+    print("⬇️ Downloading key...")
     key = requests.get(key_url, headers={
         "User-Agent": "Mozilla/5.0",
         "Referer": REFERER
     }).content
+    print("✅ Key downloaded")
 
-    # 6) Collect segments (.tsb / .tse)
+    # 6) Collect segments
+    print("📄 Collecting segments...")
     segments = []
     for f in os.listdir(extract_dir):
         if f.lower().endswith((".tsb", ".tse")):
             idx = int(re.search(r'-(\d+)\.', f).group(1))
             segments.append((idx, f))
     segments.sort(key=lambda x: x[0])
+    print(f"✅ Total segments: {len(segments)}")
 
     # 7) Decrypt
+    print("🔓 Decrypting segments...")
     cipher = AES.new(key, AES.MODE_CBC, iv)
-    for i, (_, f) in enumerate(segments):
+    total_seg = len(segments)
+
+    for i, (_, f) in enumerate(segments, 1):
         enc = open(os.path.join(extract_dir, f), "rb").read()
         dec = cipher.decrypt(enc)
-        open(os.path.join(decrypt_dir, f"{i}.ts"), "wb").write(dec)
+        open(os.path.join(decrypt_dir, f"{i-1}.ts"), "wb").write(dec)
+        print(f"\r🔓 Decrypted {i}/{total_seg}", end="")
+    print("\n✅ Decryption complete")
 
     # 8) concat list
+    print("📝 Creating concat list...")
     with open(os.path.join(decrypt_dir, "list.txt"), "w") as f:
-        for i in range(len(segments)):
+        for i in range(total_seg):
             f.write(f"file '{i}.ts'\n")
+    print("✅ list.txt created")
 
-    # 9) merge (NO re-encode)
+    # 9) merge
+    print("🔗 Merging segments (ffmpeg)...")
     subprocess.run([
         "ffmpeg", "-y",
         "-f", "concat", "-safe", "0",
@@ -546,11 +576,13 @@ def process_zip_to_video(url: str, name: str) -> str:
         out_mp4
     ], cwd=decrypt_dir, check=True)
 
+    print("🎬 Video created successfully")
+
     shutil.move(out_mp4, os.getcwd())
     shutil.rmtree(tmp, ignore_errors=True)
 
+    print(f"✅ Output file: {safe_name}.mp4")
     return safe_name + ".mp4"
-
 
 
 async def download_video(url, cmd, name):
