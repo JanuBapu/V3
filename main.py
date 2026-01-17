@@ -735,6 +735,8 @@ async def txt_handler(bot: Client, m: Message):
             
             if "acecwply" in url:
                 cmd = f'yt-dlp -o "{name}.%(ext)s" -f "bestvideo[height<={raw_text2}]+bestaudio" --hls-prefer-ffmpeg --no-keep-video --remux-video mkv --no-warning "{url}"'
+            elif "utkarshapp.com" in url and url.endswith(".mp4"):
+                url = url.replace("https://apps-s3-jw-prod.utkarshapp.com","https://d1q5ugnejk3zoi.cloudfront.net/ut-production-jw")
 
            
 
@@ -940,6 +942,7 @@ async def txt_handler(bot: Client, m: Message):
                     final_url = url
                     need_referer = False
                     namef = name1
+                    topic = None   # safe dummy value
                     if "appxsignurl.vercel.app/appx/" in url:
                         try:
                             # Step 1: Directly use the original URL
