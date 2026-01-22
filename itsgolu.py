@@ -687,7 +687,7 @@ async def download_video(url, cmd, name):
     
 
     if "youtube.com" in url or "youtu.be" in url or "embed" in url:
-        return await download_youtube(url, name)
+        return  download_youtube(url, name)
 
 
 
@@ -741,7 +741,7 @@ def download_and_decrypt_video(url: str, name: str, key: str = None) -> str | No
         return process_zip_to_video(url, name)
     
     if "youtube.com" in url or "youtu.be" in url or "embed" in url:
-        return await download_youtube(url, name)
+        return  download_youtube(url, name)
 
 
     video_path = None
