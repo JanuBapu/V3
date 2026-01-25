@@ -674,22 +674,48 @@ def process_zip_to_video(url: str, name: str) -> str:
 
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
+import asyncio
+import subprocess
+import logging
+import os
 
+
+
+def download_googlevideo(url, name):
+    """
+    Handle direct GoogleVideo redirector links (like r1---sn-ci5gup-cvhr.googlevideo.com).
+    """
+    import requests
+    try:
+        print(f"Downloading GoogleVideo link: {url}")
+        response = requests.get(url, stream=True)
+        response.raise_for_status()
+        with open(name, "wb") as f:
+            for chunk in response.iter_content(chunk_size=1024*1024):
+                if chunk:
+                    f.write(chunk)
+        print(f"✅ Saved as {name}")
+        return name
+    except Exception as e:
+        logging.error(f"GoogleVideo download error: {e}")
+        return None
+
+
+# --- Main unified function ---
 async def download_video(url, cmd, name):
     # Special cases first
     if "https://transcoded-" in url and ".m3u8" in url:
         return download_appx_m3u8(url, name)
     if "appx" in url and ".m3u8" in url:
         return await download_appx_m3u8(url, name)
-
     if "appx" in url and ".zip" in url:
         return process_zip_to_video(url, name)
+
     
 
-    if "youtube.com" in url or "youtu.be" in url or "embed" in url:
-        return  download_youtube(url, name)
-
-
+    # GoogleVideo filter
+    if "googlevideo.com" in url or "youtube.com" in url or "youtu.be" in url or "embed" in url:
+        return download_googlevideo(url, name)
 
     # Normal case
     retry_count = 0
