@@ -714,10 +714,14 @@ def fetch_player_url(youtube_url: str) -> str:
         youtube_url = f"https://www.youtube.com/watch?v={video_id}"
 
     ydl_opts = {
-        "format": "bestvideo+bestaudio/best",
+        "format": "best[height<=360][ext=mp4]/best[ext=mp4]/best",
         "quiet": True,
         "noplaylist": True,
+        "nocheckcertificate": True,   # avoid SSL issues
+        "skip_download": True,        # only extract, no download
+        "extractor_args": {"youtube": {"player_client": ["default"]}},  # avoid JS runtime warning
     }
+
 
     try:
         print("Extracting player URL from:", youtube_url)
