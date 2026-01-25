@@ -681,21 +681,38 @@ import os
 
 
 
+import requests
+import logging
+
 def download_googlevideo(url, name):
     """
-    Handle direct GoogleVideo redirector links (like r1---sn-ci5gup-cvhr.googlevideo.com).
+    Download a GoogleVideo redirector link safely.
+    Automatically follows redirects to final CDN node.
     """
-    import requests
+    headers = {
+        "User-Agent": (
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+            "AppleWebKit/537.36 (KHTML, like Gecko) "
+            "Chrome/120.0.0.0 Safari/537.36"
+        ),
+        "Referer": "https://www.youtube.com/"
+    }
+
     try:
         print(f"Downloading GoogleVideo link: {url}")
-        response = requests.get(url, stream=True)
+        # allow_redirects=True ensures automatic domain change
+        response = requests.get(url, headers=headers, stream=True, allow_redirects=True)
+        print(f"➡️ Final resolved URL: {response.url}")  # actual CDN node
+
         response.raise_for_status()
         with open(name, "wb") as f:
             for chunk in response.iter_content(chunk_size=1024*1024):
                 if chunk:
                     f.write(chunk)
+
         print(f"✅ Saved as {name}")
         return name
+
     except Exception as e:
         logging.error(f"GoogleVideo download error: {e}")
         return None
