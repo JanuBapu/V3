@@ -700,9 +700,13 @@ import os
 import yt_dlp
 import logging
 
-def fetch_player_url(youtube_url: str) -> str:
+import yt_dlp
+import logging
+
+def fetch_player_url(youtube_url: str) -> str | None:
     """
-    Extract direct player URL (video+audio) from YouTube link.
+    Extract direct player URL (GoogleVideo CDN) from a YouTube link.
+    Works without cookies for most public videos.
     """
 
     # Normalize embed or short links
@@ -717,11 +721,10 @@ def fetch_player_url(youtube_url: str) -> str:
         "format": "best[height<=360][ext=mp4]/best[ext=mp4]/best",
         "quiet": True,
         "noplaylist": True,
-        "nocheckcertificate": True,   # avoid SSL issues
-        "skip_download": True,        # only extract, no download
-        "extractor_args": {"youtube": {"player_client": ["default"]}},  # avoid JS runtime warning
+        "nocheckcertificate": True,
+        "skip_download": True,
+        "extractor_args": {"youtube": {"player_client": ["default"]}},
     }
-
 
     try:
         print("Extracting player URL from:", youtube_url)
@@ -729,16 +732,10 @@ def fetch_player_url(youtube_url: str) -> str:
             info = ydl.extract_info(youtube_url, download=False)
             player_url = info.get("url")
             print("Extracted Player URL:", player_url)
-            if player_url:
-                return download_from_player(player_url, name)
-            else:
-                logging.error("No player URL found")
-
-                return None
+            return player_url
     except Exception as e:
         logging.error(f"Error extracting player URL: {e}")
         return None
-
 
 def download_from_player(player_url: str, name: str) -> str | None:
     """
