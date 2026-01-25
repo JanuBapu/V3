@@ -961,34 +961,7 @@ async def txt_handler(bot: Client, m: Message):
                     except FloodWait as e:
                         await m.reply_text(str(e))
                         time.sleep(e.x)
-                        continue    
-                elif "https://www.youtube.com/" in url or "https://youtu.be/" in url:
-
-                        try:
-                            print("🎬 YouTube Embed - converting to watch link")
-        
-        # Convert embed link to watch?v= format
-                            video_id = url.split("/")[-1]   # last part after embed/
-                            watch_url = f"https://www.youtube.com/watch?v={video_id}"
-        
-                            keyboard_layout = [
-                            [InlineKeyboardButton("▶️ Watch on YouTube", url=watch_url)]
-        ]
-                            reply_markup = InlineKeyboardMarkup(keyboard_layout)
-        
-                            await bot.send_message(
-                            channel_id,
-                            f"📺 New Video Alert!\n\n{cc1}\n\nClick below to watch 👇",
-                            reply_markup=reply_markup,
-                            disable_web_page_preview=False  # show thumbnail
-        )
-        
-                            count += 1
-                            await asyncio.sleep(4)
-                        except FloodWait as e:
-                            await m.reply_text(str(e))
-                            time.sleep(e.x)
-                            continue
+                        continue
                 elif "https://apps-s3-prod.utkarshapp.com/admin_v1/file_manager/pdf" in url:
                         try:
                             print(f"⚠️ Utkarsh PDF - sending link only (no download)")
