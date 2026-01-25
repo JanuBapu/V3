@@ -720,6 +720,8 @@ def fetch_player_url(youtube_url: str) -> str:
         "nocheckcertificate": True,   # avoid SSL issues
         "skip_download": True,        # only extract, no download
         "extractor_args": {"youtube": {"player_client": ["android"]}},  # avoid JS runtime warning
+         "proxy": "http://219.65.73.81:80",   # 👈 yaha tumhara IP + port
+
     }
 
 
