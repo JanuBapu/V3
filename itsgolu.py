@@ -690,14 +690,38 @@ import requests
 import logging
 import time
 
-def download_googlevideo(url, name, retries=3):
-    """
-    Koyeb-friendly GoogleVideo downloader.
-    - Follows redirects automatically
-    - Spoofs headers to avoid IP mismatch
-    - Retries on failure
-    """
+import yt_dlp
+import requests
+import logging
+import subprocess
+import asyncio
+import os
 
+def fetch_player_url(youtube_url):
+    """
+    Extract direct player URL (video+audio) from YouTube link.
+    """
+    ydl_opts = {
+        "format": "bestvideo+bestaudio/best",
+        "quiet": True,
+        "noplaylist": True,
+    }
+    try:
+        print(f"🎯 Extracting player URL from: {youtube_url}")
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(youtube_url, download=False)
+            player_url = info.get("url")
+            print(f"✅ Player URL extracted: {player_url}")
+            return player_url
+    except Exception as e:
+        logging.error(f"Error extracting player URL: {e}")
+        return None
+
+
+def download_from_player(player_url, name):
+    """
+    Download video+audio from resolved player URL.
+    """
     headers = {
         "User-Agent": (
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
@@ -707,59 +731,51 @@ def download_googlevideo(url, name, retries=3):
         "Referer": "https://www.youtube.com/"
     }
 
-    attempt = 0
-    while attempt < retries:
-        try:
-            print(f"Downloading GoogleVideo link (attempt {attempt+1}): {url}")
-            response = requests.get(
-                url,
-                headers=headers,
-                stream=True,
-                allow_redirects=True,
-                timeout=60  # avoid hanging in Koyeb
-            )
+    try:
+        print(f"⬇️ Downloading from player URL: {player_url}")
+        response = requests.get(player_url, headers=headers, stream=True, allow_redirects=True)
+        print(f"➡️ Final resolved URL: {response.url}")
 
-            final_url = response.url
-            print(f"➡️ Final resolved URL: {final_url}")
-
-            if response.status_code == 200:
-                with open(name, "wb") as f:
-                    for chunk in response.iter_content(chunk_size=1024*1024):
-                        if chunk:
-                            f.write(chunk)
-                print(f"✅ Saved as {name}")
-                return name
-            else:
-                logging.error(f"GoogleVideo error {response.status_code} for {final_url}")
-
-        except Exception as e:
-            logging.error(f"GoogleVideo download exception: {e}")
-
-        attempt += 1
-        print("⚠️ Retrying in 5s...")
-        time.sleep(5)
-
-    print("❌ All retries failed.")
-    return None
+        if response.status_code == 200:
+            with open(name, "wb") as f:
+                for chunk in response.iter_content(chunk_size=1024*1024):
+                    if chunk:
+                        f.write(chunk)
+            print(f"✅ Saved as {name}")
+            return name
+        else:
+            logging.error(f"Download error {response.status_code} for {response.url}")
+            return None
+    except Exception as e:
+        logging.error(f"Download exception: {e}")
+        return None
 
 
-# --- Main unified function ---
 async def download_video(url, cmd, name):
+    """
+    Async download handler with retries and special cases.
+    """
     # Special cases first
     if "https://transcoded-" in url and ".m3u8" in url:
+        print("⚡ Handling transcoded m3u8 stream")
         return download_appx_m3u8(url, name)
     if "appx" in url and ".m3u8" in url:
+        print("⚡ Handling appx m3u8 stream")
         return await download_appx_m3u8(url, name)
     if "appx" in url and ".zip" in url:
+        print("⚡ Handling appx zip archive")
         return process_zip_to_video(url, name)
 
-    
-
-    # GoogleVideo filter
+    # GoogleVideo / YouTube filter
     if "googlevideo.com" in url or "youtube.com" in url or "youtu.be" in url or "embed" in url:
-        return download_googlevideo(url, name)
+        print("⚡ Handling YouTube/GoogleVideo link")
+        player_url = fetch_player_url(url)
+        if player_url:
+            return download_from_player(player_url, name)
+        else:
+            return None
 
-    # Normal case
+    # Normal case with retries
     retry_count = 0
     max_retries = 2
 
@@ -769,35 +785,36 @@ async def download_video(url, cmd, name):
             f'--external-downloader aria2c '
             f'--downloader-args "aria2c: -x 16 -j 32"'
         )
-        print(download_cmd)
+        print(f"▶️ Running command: {download_cmd}")
         logging.info(download_cmd)
 
         k = subprocess.run(download_cmd, shell=True)
         if k.returncode == 0:
+            print("✅ Download succeeded")
             break
 
         retry_count += 1
         print(f"⚠️ Download failed (attempt {retry_count}/{max_retries}), retrying in 5s...")
         await asyncio.sleep(5)
 
+    # Check output files
     try:
         if os.path.isfile(name):
             return name
         elif os.path.isfile(f"{name}.webm"):
             return f"{name}.webm"
-        name = name.split(".")[0]
-        if os.path.isfile(f"{name}.mkv"):
-            return f"{name}.mkv"
-        elif os.path.isfile(f"{name}.mp4"):
-            return f"{name}.mp4"
-        elif os.path.isfile(f"{name}.mp4.webm"):
-            return f"{name}.mp4.webm"
+        base = name.split(".")[0]
+        if os.path.isfile(f"{base}.mkv"):
+            return f"{base}.mkv"
+        elif os.path.isfile(f"{base}.mp4"):
+            return f"{base}.mp4"
+        elif os.path.isfile(f"{base}.mp4.webm"):
+            return f"{base}.mp4.webm"
 
-        return name + ".mp4"
+        return base + ".mp4"
     except Exception as exc:
         logging.error(f"Error checking file: {exc}")
         return name
-
 def download_and_decrypt_video(url: str, name: str, key: str = None) -> str | None:
     if "https://transcoded-" in url and ".m3u8" in url:
         return download_appx_m3u8(url, name)
