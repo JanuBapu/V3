@@ -838,21 +838,14 @@ async def txt_handler(bot: Client, m: Message):
 
                 if final_url:
                     # Force replace redirector domain
-                    final_url = final_url.replace(
-                    "https://redirector.googlevideo.com",
-                    "https://r3---sn-h557snsl.googlevideo.com"
-    )
-
+                    
                     print(f"✅ Final 360p URL selected: {final_url}")
                     url = final_url
                    
                 else:
                     print("⚠️ 360p format not found, falling back to first available format")
                     if formats:
-                         url = formats[0].get("url").replace(
-            "https://redirector.googlevideo.com",
-            "https://r3---sn-h557snsl.googlevideo.com"
-        )
+                         url = formats[0].get("url")
 
                     else:
                         url = None
