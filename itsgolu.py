@@ -686,11 +686,18 @@ import logging
 import requests
 import logging
 
-def download_googlevideo(url, name):
+import requests
+import logging
+import time
+
+def download_googlevideo(url, name, retries=3):
     """
-    Download a GoogleVideo redirector link safely.
-    Automatically follows redirects to final CDN node.
+    Koyeb-friendly GoogleVideo downloader.
+    - Follows redirects automatically
+    - Spoofs headers to avoid IP mismatch
+    - Retries on failure
     """
+
     headers = {
         "User-Agent": (
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
@@ -700,25 +707,40 @@ def download_googlevideo(url, name):
         "Referer": "https://www.youtube.com/"
     }
 
-    try:
-        print(f"Downloading GoogleVideo link: {url}")
-        # allow_redirects=True ensures automatic domain change
-        response = requests.get(url, headers=headers, stream=True, allow_redirects=True)
-        print(f"➡️ Final resolved URL: {response.url}")  # actual CDN node
-        response.raise_for_status()
+    attempt = 0
+    while attempt < retries:
+        try:
+            print(f"Downloading GoogleVideo link (attempt {attempt+1}): {url}")
+            response = requests.get(
+                url,
+                headers=headers,
+                stream=True,
+                allow_redirects=True,
+                timeout=60  # avoid hanging in Koyeb
+            )
 
-        # Write file in chunks to avoid lag/memory issues
-        with open(name, "wb") as f:
-            for chunk in response.iter_content(chunk_size=1024*1024):
-                if chunk:
-                    f.write(chunk)
+            final_url = response.url
+            print(f"➡️ Final resolved URL: {final_url}")
 
-        print(f"✅ Saved as {name}")
-        return name
+            if response.status_code == 200:
+                with open(name, "wb") as f:
+                    for chunk in response.iter_content(chunk_size=1024*1024):
+                        if chunk:
+                            f.write(chunk)
+                print(f"✅ Saved as {name}")
+                return name
+            else:
+                logging.error(f"GoogleVideo error {response.status_code} for {final_url}")
 
-    except Exception as e:
-        logging.error(f"GoogleVideo download error: {e}")
-        return None
+        except Exception as e:
+            logging.error(f"GoogleVideo download exception: {e}")
+
+        attempt += 1
+        print("⚠️ Retrying in 5s...")
+        time.sleep(5)
+
+    print("❌ All retries failed.")
+    return None
 
 
 # --- Main unified function ---
