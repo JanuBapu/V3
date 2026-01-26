@@ -822,7 +822,22 @@ async def txt_handler(bot: Client, m: Message):
             if "edge.api.brightcove.com" in url:
                 bcov = f'bcov_auth={cwtoken}'
                 url = url.split("bcov_auth")[0]+bcov
-            
+            elif "embed" in url or "youtube.com" in url or "youtu.be" in url:
+                youtube_url = url
+                api_url = (
+                "https://7689cb04-7df7-4e18-8e84-39bc2dad7335-00-nqy5dzhuolui.pike.replit.dev/"
+                f"player?youtube_url={youtube_url}"
+    )
+                print(f"[DEBUG] API URL: {api_url}")
+                 # Step 3: API call kare aur response parse kare
+                response = requests.get(api_url)
+                data = response.json()
+                print(f"[DEBUG] API Response: {data}")
+
+    # Step 4: Final player_url nikale
+                if data.get("status") == "success":
+                 url = data.get("player_url")
+       
 
 
             elif "dragoapi.vercel.app" in url and "*" in url :
@@ -889,15 +904,17 @@ async def txt_handler(bot: Client, m: Message):
                 appxkey = url.split('*')[1]
                 url = url.split('*')[0]
 
+           
             if "youtu" in url:
                 ytf = f"bv*[height<={raw_text2}][ext=mp4]+ba[ext=m4a]/b[height<=?{raw_text2}]"
             elif "embed" in url:
                 ytf = f"bestvideo[height<={raw_text2}]+bestaudio/best[height<={raw_text2}]"
             elif "youtube.com" in url or "youtu.be" in url:
                 cmd = f'yt-dlp --cookies youtube_cookies.txt -f "{ytf}" "{url}" -o "{name}".mp4'
+           
             else:
                 ytf = f"b[height<={raw_text2}]/bv[height<={raw_text2}]+ba/b/bv+ba"
-            
+                
             if "jw-prod" in url:
                 url = url.replace("https://apps-s3-jw-prod.utkarshapp.com/admin_v1/file_library/videos","https://d1q5ugnejk3zoi.cloudfront.net/ut-production-jw/admin_v1/file_library/videos")
                 cmd = f'yt-dlp -o "{name}.mp4" "{url}"'
@@ -939,34 +956,7 @@ async def txt_handler(bot: Client, m: Message):
                     except FloodWait as e:
                         await m.reply_text(str(e))
                         time.sleep(e.x)
-                        continue    
-                elif "https://www.youtube.com/" in url or "https://youtu.be/" in url:
-
-                        try:
-                            print("🎬 YouTube Embed - converting to watch link")
-        
-        # Convert embed link to watch?v= format
-                            video_id = url.split("/")[-1]   # last part after embed/
-                            watch_url = f"https://www.youtube.com/watch?v={video_id}"
-        
-                            keyboard_layout = [
-                            [InlineKeyboardButton("▶️ Watch on YouTube", url=watch_url)]
-        ]
-                            reply_markup = InlineKeyboardMarkup(keyboard_layout)
-        
-                            await bot.send_message(
-                            channel_id,
-                            f"📺 New Video Alert!\n\n{cc1}\n\nClick below to watch 👇",
-                            reply_markup=reply_markup,
-                            disable_web_page_preview=False  # show thumbnail
-        )
-        
-                            count += 1
-                            await asyncio.sleep(4)
-                        except FloodWait as e:
-                            await m.reply_text(str(e))
-                            time.sleep(e.x)
-                            continue
+                        continue
                 elif "https://apps-s3-prod.utkarshapp.com/admin_v1/file_manager/pdf" in url:
                         try:
                             print(f"⚠️ Utkarsh PDF - sending link only (no download)")
