@@ -702,23 +702,28 @@ import logging
 
 
 def download_from_player(url: str, name: str) -> str | None:
-    """
-    Download video+audio from resolved player URL.
-    """
     headers = {
         "User-Agent": (
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
             "AppleWebKit/537.36 (KHTML, like Gecko) "
-            "Chrome/120.0.0.0 Safari/537.36"
+            "Chrome/143.0.0.0 Safari/537.36"
         ),
-        "Referer": "https://www.youtube.com/"
+        "Referer": url,   # same URL as referer
+        "Origin": "https://www.youtube.com",
+        "Range": "bytes=0-",
+        "Accept": "*/*",
+        "Accept-Encoding": "identity;q=1, *;q=0",
+        "Accept-Language": "en-GB,en-US;q=0.9,en;q=0.8",
+        "DNT": "1"
     }
 
     print("⬇️ Downloading from player URL:", url)
-    response = requests.get(url, headers=headers, stream=True, allow_redirects=True)
+    session = requests.Session()
+    response = session.get(url, headers=headers, stream=True, allow_redirects=True)
+
     print("➡️ Final resolved URL:", response.url)
 
-    if response.status_code == 200:
+    if response.status_code in (200, 206):  # allow partial content
         with open(name, "wb") as f:
             for chunk in response.iter_content(chunk_size=1024*1024):
                 if chunk:
@@ -728,8 +733,6 @@ def download_from_player(url: str, name: str) -> str | None:
     else:
         logging.error(f"Download error {response.status_code} for {response.url}")
         return None
-
-
 async def download_video(url, cmd, name):
     """
     Async download handler with retries and special cases.
