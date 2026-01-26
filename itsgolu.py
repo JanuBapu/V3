@@ -49,6 +49,47 @@ import shutil
 # ==============================
 import os
 import yt_dlp
+import os
+import asyncio
+import subprocess
+
+async def download_appx_m3u8(url: str, name: str) -> str | None:
+    """
+    Download appx m3u8 video and return output file path only
+    """
+
+    os.makedirs("downloads", exist_ok=True)
+    output = f"downloads/{name}.mp4"
+
+    headers = (
+        "User-Agent: Mozilla/5.0 (Linux; Android 13)\r\n"
+        "Referer: https://player.akamai.net.in/\r\n"
+        "Origin: https://akstechnicalclasses.classx.co.in"
+    )
+
+    cmd = [
+        "ffmpeg",
+        "-y",
+        "-headers", headers,
+        "-i", url,
+        "-c", "copy",
+        "-bsf:a", "aac_adtstoasc",
+        output
+    ]
+
+    process = await asyncio.create_subprocess_exec(
+        *cmd,
+        stdout=asyncio.subprocess.DEVNULL,
+        stderr=asyncio.subprocess.DEVNULL
+    )
+
+    await process.wait()
+
+    if process.returncode == 0 and os.path.exists(output):
+        return output
+
+    return None
+
 
 
 def download_youtube(url, name, output_path="downloads"):
@@ -704,44 +745,55 @@ import logging
 import requests
 import logging
 
-def download_from_player(url: str, name: str) -> str | None:
-    """
-    Directly download video+audio from a given GoogleVideo/YouTube player URL.
-    """
-    headers = {
-        "User-Agent": (
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-            "AppleWebKit/537.36 (KHTML, like Gecko) "
-            "Chrome/143.0.0.0 Safari/537.36"
-        ),
-        "Referer": url,
-        "Origin": "https://www.youtube.com",
-        "Range": "bytes=0-",
-        "Accept": "*/*",
-        "Accept-Encoding": "identity;q=1, *;q=0",
-        "Accept-Language": "en-GB,en-US;q=0.9,en;q=0.8",
-        "Sec-Fetch-Dest": "video",
-        "Sec-Fetch-Mode": "no-cors",
-        "Sec-Fetch-Site": "same-origin",
-        "DNT": "1"
-    }
+import asyncio
+import os
 
-    print("⬇️ Downloading from player URL:", url)
-    response = requests.get(url, headers=headers, stream=True, allow_redirects=True, timeout=30)
-    print("➡️ Final resolved URL:", response.url)
+async def download_from_player(url: str, output: str) -> str | None:
+    """
+    Download video using ffmpeg with custom headers.
+    """
+    headers = (
+        "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) "
+        "Chrome/143.0.0.0 Safari/537.36\r\n"
+        f"Referer: {url}\r\n"
+        "Origin: https://www.youtube.com\r\n"
+        "Range: bytes=0-\r\n"
+        "Accept: */*\r\n"
+        "Accept-Encoding: identity;q=1, *;q=0\r\n"
+        "Accept-Language: en-GB,en-US;q=0.9,en;q=0.8\r\n"
+        "Sec-Fetch-Dest: video\r\n"
+        "Sec-Fetch-Mode: no-cors\r\n"
+        "Sec-Fetch-Site: same-origin\r\n"
+        "DNT: 1\r\n"
+    )
 
-    if response.status_code in (200, 206):  # allow full or partial content
-        with open(name, "wb") as f:
-            for chunk in response.iter_content(chunk_size=1024*1024):
-                if chunk:
-                    f.write(chunk)
-        print("✅ Saved as", name)
-        return name
+    cmd = [
+        "ffmpeg",
+        "-y",
+        "-headers", headers,
+        "-i", url,
+        "-c", "copy",
+        "-bsf:a", "aac_adtstoasc",
+        output
+    ]
+
+    print("⚡ Running ffmpeg command:", " ".join(cmd))
+
+    process = await asyncio.create_subprocess_exec(
+        *cmd,
+        stdout=asyncio.subprocess.DEVNULL,
+        stderr=asyncio.subprocess.DEVNULL
+    )
+
+    await process.wait()
+
+    if process.returncode == 0 and os.path.exists(output):
+        print("✅ Download complete:", output)
+        return output
     else:
-        logging.error(f"Download error {response.status_code} for {response.url}")
+        print("❌ ffmpeg failed with code:", process.returncode)
         return None
-
-
 
 async def download_video(url, cmd, name):
     """
