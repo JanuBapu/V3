@@ -1079,11 +1079,11 @@ async def txt_handler(bot: Client, m: Message):
                 )
 
                 ccimg = (
-      f"<blockquote><b>⋅——— ✦ {str(count).zfill(3)} ✦———</b></blockquote>\n" \
-      f"<blockquote><b>⋅ 📁 Title :</b> {𝗻𝗮𝗺𝗲𝟭}</blockquote>\n" \
+      f"<blockquote><b>⋅——— ✦ {str(count).zfill(3)} ✦———</b></blockquote>\n\n" \
+      f"<blockquote><b>⋅ 📁 Title :</b> {𝗻𝗮𝗺𝗲𝟭}</blockquote>\n\n" \
       f"<blockquote><b>⋅ ├── Extention :</b> <a href='https://t.me/Course_diploma_bot'>𝄟⃝🐬🅹🅰🅸 🆂🅷🆁🅸 🆁🅰🅼 ⚡️ 𝄟⃝🐬 💻</a>.mkv</blockquote>\n" \
-      f"<blockquote><b>⋅ ├── Resolution :</b> {raw_text2}</blockquote>\n" \
-      f"<blockquote><b>⋅ 📚 Course »</b> {b_name}</blockquote>\n" \
+      f"<blockquote><b>⋅ ├── Resolution :</b> 1080 x 1920 </blockquote>\n\n" \
+      f"<blockquote><b>⋅ 📚 Course »</b> {b_name}</blockquote>\n\n" \
       f"<blockquote><b>⋅ 🌟 Extracted By :</b> {CR}</blockquote>"
 
                 )
@@ -1136,14 +1136,14 @@ async def txt_handler(bot: Client, m: Message):
 
         # HTML caption block
                         ccyt = ( 
-                               f"<blockquote><b>⋅——— ✦ [📺] YouTube Id : {str(count).zfill(3)} ✦———</b></blockquote>\n" \
-                               f"<blockquote><b>⋅ 🎬 Title :</b> {name1}</blockquote>\n" \
-                               f"<blockquote><b>⋅ ├── Platform :</b> <a href='{url}'>YouTube</a></blockquote>\n" \
-                               f"<blockquote><b>⋅ ├── Resolution :</b> {raw_text2}</blockquote>\n" \
-                               f"<blockquote><b>⋅ 📚 Course »</b> {b_name}</blockquote>\n" \
-                               f"<blockquote><b>⋅ 🌟 Extracted By :</b> {CR}</blockquote>\n\n" \
-                               f"<blockquote><b>🔗 It seems that this video might help you — <a href='{url}'>click here to watch</a></b></blockquote>\n" \
-                               f"<blockquote><b>🎬 Stream on <a href='{url}'>Jay Shree Ram Player</a></b></blockquote>"
+                               f" ——— ✦ [📺] YouTube Id : {str(count).zfill(3)} ✦———\n\n" \
+                               f" 🎬 Title : {name1}\n\n" \
+                               f" ├── Platform : <a href='{url}'>YouTube</a>\n\n" \
+                               f" ├── Resolution : {raw_text2}\n\n" \
+                               f" 📚 Course » {b_name}\n\n" \
+                               f" 🌟 Extracted By : {CR}\n\n" \
+                               f" 🔗 It seems that this video might help you — <a href='{url}'>click here to watch</a>\n" \
+                               f" 🎬 Stream on <a href='{url}'>Jay Shree Ram Player</a>"
                         )
         # Buttons
                         keyboard_layout = [
@@ -1169,13 +1169,14 @@ async def txt_handler(bot: Client, m: Message):
                         thumbnail_url = "https://i.ibb.co/HL5FWsHX/Chat-GPT-Image-Jan-28-2026-07-21-48-PM.png"
 
         # HTML caption block
-                        ccpdf = f"<blockquote><b>⋅——— ✦ [📖] PDF Id : {str(count).zfill(3)} ✦———</b></blockquote>\n" \
-                                f"<blockquote><b>⋅ 📄 Title :</b> {name1}.pdf</blockquote>\n" \
-                                f"<blockquote><b>⋅ ├── Platform :</b> Utkarsh App</blockquote>\n" \
-                                f"<blockquote><b>⋅ 📚 Course »</b> {b_name}</blockquote>\n" \
-                                f"<blockquote><b>⋅ 🌟 Extracted By :</b> {CR}</blockquote>\n\n" \
-                                f"<blockquote><b>🔗 It seems that this PDF might help you — <a href='{url}'>click here to view</a></b></blockquote>\n" \
-                                f"<blockquote><b>📖 View on <a href='{url}'>Utkarsh PDF Reader</a></b></blockquote>"
+                        ccpdf =( f" ——— ✦ [📖] PDF Id : {str(count).zfill(3)} ✦———\n\n" \
+                                f" 📄 Title : {name1}.pdf\n\n" \
+                                f" ├── Platform : Utkarsh App\n\n" \
+                                f" 📚 Course » {b_name}\n\n" \
+                                f" 🌟 Extracted By : {CR}\n\n" \
+                                f" 🔗 It seems that this PDF might help you — <a href='{url}'>click here to view</a>\n\n" \
+                                f" 📖 View on <a href='{url}'>Utkarsh PDF Reader</a>"
+                               )
 
         # Buttons
                         keyboard_layout = [
