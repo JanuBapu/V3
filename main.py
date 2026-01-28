@@ -16,6 +16,7 @@ from subprocess import getstatusoutput
 import base64
 # 🕒 Timezone
 import pytz
+from pyrogram import enums
 
 # 📦 Third-party Libraries
 import aiohttp
