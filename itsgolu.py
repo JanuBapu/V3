@@ -53,18 +53,20 @@ import os
 import asyncio
 import subprocess
 
+import os
+import subprocess
+
 def download_appx_m3u8(url: str, name: str) -> str | None:
     """
-    Download appx m3u8 video and return output file path only
+    Download m3u8 video using ffmpeg (sync version)
     """
-
     os.makedirs("downloads", exist_ok=True)
     output = f"downloads/{name}.mp4"
 
     headers = (
         "User-Agent: Mozilla/5.0 (Linux; Android 13)\r\n"
         "Referer: https://player.akamai.net.in/\r\n"
-        "Origin: https://akstechnicalclasses.classx.co.in"
+        "Origin: https://akstechnicalclasses.classx.co.in\r\n"
     )
 
     cmd = [
@@ -77,20 +79,15 @@ def download_appx_m3u8(url: str, name: str) -> str | None:
         output
     ]
 
-    process = await asyncio.create_subprocess_exec(
-        *cmd,
-        stdout=asyncio.subprocess.DEVNULL,
-        stderr=asyncio.subprocess.DEVNULL
-    )
-
-    await process.wait()
+    # run ffmpeg synchronously
+    process = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
     if process.returncode == 0 and os.path.exists(output):
+        print("✅ Download complete:", output)
         return output
-
-    return None
-
-
+    else:
+        print("❌ ffmpeg error:", process.stderr.decode())
+        return None
 
 def download_youtube(url, name, output_path="downloads"):
     if not os.path.exists(output_path):
