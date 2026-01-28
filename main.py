@@ -1119,7 +1119,7 @@ async def txt_handler(bot: Client, m: Message):
                                     chat_id=channel_id,
                                     document=decrypted_path,
                                     caption=cc1
-                                    parse_mode=enums.ParseMode.HTML
+                                    
                                 )
                                 count += 1
                                 os.remove(decrypted_path)   # cleanup
