@@ -72,6 +72,63 @@ import pyromod.listen
 pyromod.listen.Client.listen = pyromod.listen.listen
 
 from db import db
+import os, requests, time
+from urllib.parse import unquote, urlparse
+from pyrogram.errors import FloodWait
+
+# PDF Download function
+def download_pdf(url: str, filename: str) -> str | None:
+    url = unquote(url)
+    origin = f"{urlparse(url).scheme}://{urlparse(url).netloc}"
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Linux; Android 13)",
+        "Referer": origin,
+        "Origin": origin,
+        "Accept": "*/*",
+        "Connection": "keep-alive"
+    }
+
+    file_path = f"/tmp/{filename}.pdf"
+    try:
+        print(f"[DEBUG] Downloading: {url}")
+        r = requests.get(url, headers=headers, stream=True, timeout=(10, 180))
+        print(f"[DEBUG] Status: {r.status_code}")
+
+        if r.status_code not in (200, 206):
+            print(f"[ERROR] Bad status {r.status_code}, body={r.text[:200]}")
+            return None
+
+        with open(file_path, "wb") as f:
+            for chunk in r.iter_content(chunk_size=256*1024):
+                if chunk:
+                    f.write(chunk)
+
+        print(f"[DEBUG] File saved: {file_path}")
+        return file_path
+
+    except Exception as e:
+        print(f"[EXCEPTION] {e}")
+        return None
+
+
+# PDF Decrypt function
+def decrypt_pdf(file_path: str, key: str, out_name: str = "final.pdf") -> str | None:
+    if not file_path or not os.path.exists(file_path):
+        return None
+    key_bytes = key.encode()
+    size = min(28, os.path.getsize(file_path))
+    with open(file_path, "rb") as f:
+        data = bytearray(f.read())
+    for i in range(size):
+        data[i] ^= key_bytes[i] if i < len(key_bytes) else i
+    out_path = f"/tmp/{out_name}"
+    with open(out_path, "wb") as f:
+        f.write(data)
+    return out_path
+
+
+# Main logic (same as your elif block)
+
 
 auto_flags = {}
 auto_clicked = False
@@ -1070,7 +1127,7 @@ async def txt_handler(bot: Client, m: Message):
                         await m.reply_text(str(e))
                         time.sleep(e.x)
                         continue
-                elif "youtube.com/watch" in url or "youtu.be/" in url:
+                elif "embed" in url or "youtube.com" in url or "youtu.be" in url:
                     try:
                         print(f"📺 YouTube Video - sending with thumbnail and buttons")
 
