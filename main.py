@@ -77,7 +77,7 @@ from urllib.parse import unquote, urlparse
 from pyrogram.errors import FloodWait
 
 # PDF Download function
-def download_pdf(url: str, filename: str) -> str | None:
+'''def download_pdf(url: str, filename: str) -> str | None:
     url = unquote(url)
     origin = f"{urlparse(url).scheme}://{urlparse(url).netloc}"
     headers = {
@@ -124,7 +124,7 @@ def decrypt_pdf(file_path: str, key: str, out_name: str = "final.pdf") -> str | 
     out_path = f"/tmp/{out_name}"
     with open(out_path, "wb") as f:
         f.write(data)
-    return out_path
+    return out_path'''
 
 
 # Main logic (same as your elif block)
@@ -1030,21 +1030,21 @@ async def txt_handler(bot: Client, m: Message):
 
             try:
                 cc = (
-    f"<blockquote><b ⋅——— ✦ {str(count).zfill(3)} ✦———</b></blockquote>\n\n" \
+     f"<blockquote><b>⋅——— ✦ {str(count).zfill(3)} ✦——— </b></blockquote>\n\n" \
      f"<blockquote><b> 🎞️ Title : {𝗻𝗮𝗺𝗲𝟭}</b></blockquote>\n\n" \
      f"<blockquote><b> ├── Extention : <a href='https://t.me/Course_diploma_bot'>𝄟⃝🐬🅹🅰🅸 🆂🅷🆁🅸 🆁🅰🅼 ⚡️ 𝄟⃝🐬 💻</a>.mkv</b></blockquote>\n" \
-     f"<blockquote><b> ├── Resolution : 1080 x 1920 </b></blockquote>\n" \
-     f"<blockquote><b> 📚 Course » {b_name}</b></blockquote>\n" \
+     f"<blockquote><b> ├── Resolution : 1080 x 1920 </b></blockquote>\n\n" \
+     f"<blockquote><b> 📚 Course » {b_name}</b></blockquote>\n\n" \
      f"<blockquote><b> 🌟 Extracted By : {CR}</b></blockquote>"
 
 
 )
                 cc1 = (
-    f"<blockquote><b>⋅——— ✦ {str(count).zfill(3)} ✦——— </b></blockquote>\n" \
-      f"<blockquote><b> 📁 Title :{𝗻𝗮𝗺𝗲𝟭}</b></blockquote>\n" \
+    f"<blockquote><b>⋅——— ✦ {str(count).zfill(3)} ✦——— </b></blockquote>\n\n" \
+      f"<blockquote><b> 📁 Title :{𝗻𝗮𝗺𝗲𝟭}</b></blockquote>\n\n" \
       f"<blockquote><b> ├── Extention : <a href='https://t.me/Course_diploma_bot'>𝄟⃝🐬🅹🅰🅸 🆂🅷🆁🅸 🆁🅰🅼 ⚡️ 𝄟⃝🐬 💻</a>.mkv</b></blockquote>\n" \
-      f"<blockquote><b> ├── Resolution : {raw_text2}</b></blockquote>\n" \
-      f"<blockquote><b> 📚 Course » {b_name}</b></blockquote>\n" \
+      f"<blockquote><b> ├── Resolution : 1080 x 1920  </b></blockquote>\n\n" \
+      f"<blockquote><b> 📚 Course » {b_name}</b></blockquote>\n\n" \
       f"<blockquote><b> 🌟 Extracted By : {CR}</b></blockquote>"
 
 
@@ -1075,7 +1075,19 @@ async def txt_handler(bot: Client, m: Message):
          f"<blockquote><b>⋅ Batch Name : {b_name}</b></blockquote>\n" \
          f"<blockquote><b>⋅ 🌟 Extracted By : {CR} </b></blockquote>"
 
+
                 )
+
+                ccimg = (
+      f"<blockquote><b>⋅——— ✦ {str(count).zfill(3)} ✦———</b></blockquote>\n" \
+      f"<blockquote><b>⋅ 📁 Title :</b> {𝗻𝗮𝗺𝗲𝟭}</blockquote>\n" \
+      f"<blockquote><b>⋅ ├── Extention :</b> <a href='https://t.me/Course_diploma_bot'>𝄟⃝🐬🅹🅰🅸 🆂🅷🆁🅸 🆁🅰🅼 ⚡️ 𝄟⃝🐬 💻</a>.mkv</blockquote>\n" \
+      f"<blockquote><b>⋅ ├── Resolution :</b> {raw_text2}</blockquote>\n" \
+      f"<blockquote><b>⋅ 📚 Course »</b> {b_name}</blockquote>\n" \
+      f"<blockquote><b>⋅ 🌟 Extracted By :</b> {CR}</blockquote>"
+
+                )
+                
                 if "drive" in url:
                     try:
                         ka = await helper.download(url, name)
@@ -1123,7 +1135,8 @@ async def txt_handler(bot: Client, m: Message):
         # If you want to use a custom thumbnail, replace thumbnail_url with your own hosted image
 
         # HTML caption block
-                        ccyt = f"<blockquote><b>⋅——— ✦ [📺] YouTube Id : {str(count).zfill(3)} ✦———</b></blockquote>\n" \
+                        ccyt = ( 
+                               f"<blockquote><b>⋅——— ✦ [📺] YouTube Id : {str(count).zfill(3)} ✦———</b></blockquote>\n" \
                                f"<blockquote><b>⋅ 🎬 Title :</b> {name1}</blockquote>\n" \
                                f"<blockquote><b>⋅ ├── Platform :</b> <a href='{url}'>YouTube</a></blockquote>\n" \
                                f"<blockquote><b>⋅ ├── Resolution :</b> {raw_text2}</blockquote>\n" \
@@ -1131,7 +1144,7 @@ async def txt_handler(bot: Client, m: Message):
                                f"<blockquote><b>⋅ 🌟 Extracted By :</b> {CR}</blockquote>\n\n" \
                                f"<blockquote><b>🔗 It seems that this video might help you — <a href='{url}'>click here to watch</a></b></blockquote>\n" \
                                f"<blockquote><b>🎬 Stream on <a href='{url}'>Jay Shree Ram Player</a></b></blockquote>"
-
+                        )
         # Buttons
                         keyboard_layout = [
                         [InlineKeyboardButton("▶️ Watch on YouTube", url=url)],
