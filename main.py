@@ -940,20 +940,7 @@ async def txt_handler(bot: Client, m: Message):
             if "edge.api.brightcove.com" in url:
                 pass
             elif "embed" in url or "youtube.com" in url or "youtu.be" in url:
-                youtube_url = url
-                api_url = (
-                "https://7689cb04-7df7-4e18-8e84-39bc2dad7335-00-nqy5dzhuolui.pike.replit.dev/"
-                f"player?youtube_url={youtube_url}"
-    )
-                print(f"[DEBUG] API URL: {api_url}")
-                 # Step 3: API call kare aur response parse kare
-                response = requests.get(api_url)
-                data = response.json()
-                print(f"[DEBUG] API Response: {data}")
-
-    # Step 4: Final player_url nikale
-                if data.get("status") == "success":
-                 url = data.get("player_url")
+                pass
        
 
 
@@ -1043,50 +1030,50 @@ async def txt_handler(bot: Client, m: Message):
 
             try:
                 cc = (
-    f"<blockquote><b>⋅——— ✦ {str(count).zfill(3)} ✦———</b></blockquote>\n" \
-     f"<blockquote><b>⋅ 🎞️ Title :</b> {𝗻𝗮𝗺𝗲𝟭}</blockquote>\n" \
-     f"<blockquote><b>⋅ ├── Extention :</b> <a href='https://t.me/Course_diploma_bot'>𝄟⃝🐬🅹🅰🅸 🆂🅷🆁🅸 🆁🅰🅼 ⚡️ 𝄟⃝🐬 💻</a>.mkv</blockquote>\n" \
-     f"<blockquote><b>⋅ ├── Resolution :</b> {raw_text2}</blockquote>\n" \
-     f"<blockquote><b>⋅ 📚 Course »</b> {b_name}</blockquote>\n" \
-     f"<blockquote><b>⋅ 🌟 Extracted By :</b> {CR}</blockquote>"
+    f"<blockquote><b ⋅——— ✦ {str(count).zfill(3)} ✦———</b></blockquote>\n\n" \
+     f"<blockquote><b> 🎞️ Title : {𝗻𝗮𝗺𝗲𝟭}</b></blockquote>\n\n" \
+     f"<blockquote><b> ├── Extention : <a href='https://t.me/Course_diploma_bot'>𝄟⃝🐬🅹🅰🅸 🆂🅷🆁🅸 🆁🅰🅼 ⚡️ 𝄟⃝🐬 💻</a>.mkv</b></blockquote>\n" \
+     f"<blockquote><b> ├── Resolution : 1080 x 1920 </b></blockquote>\n" \
+     f"<blockquote><b> 📚 Course » {b_name}</b></blockquote>\n" \
+     f"<blockquote><b> 🌟 Extracted By : {CR}</b></blockquote>"
 
 
 )
                 cc1 = (
-    f"<blockquote><b>⋅——— ✦ {str(count).zfill(3)} ✦———</b></blockquote>\n" \
-      f"<blockquote><b>⋅ 📁 Title :</b> {𝗻𝗮𝗺𝗲𝟭}</blockquote>\n" \
-      f"<blockquote><b>⋅ ├── Extention :</b> <a href='https://t.me/Course_diploma_bot'>𝄟⃝🐬🅹🅰🅸 🆂🅷🆁🅸 🆁🅰🅼 ⚡️ 𝄟⃝🐬 💻</a>.mkv</blockquote>\n" \
-      f"<blockquote><b>⋅ ├── Resolution :</b> {raw_text2}</blockquote>\n" \
-      f"<blockquote><b>⋅ 📚 Course »</b> {b_name}</blockquote>\n" \
-      f"<blockquote><b>⋅ 🌟 Extracted By :</b> {CR}</blockquote>"
+    f"<blockquote><b>⋅——— ✦ {str(count).zfill(3)} ✦——— </b></blockquote>\n" \
+      f"<blockquote><b> 📁 Title :{𝗻𝗮𝗺𝗲𝟭}</b></blockquote>\n" \
+      f"<blockquote><b> ├── Extention : <a href='https://t.me/Course_diploma_bot'>𝄟⃝🐬🅹🅰🅸 🆂🅷🆁🅸 🆁🅰🅼 ⚡️ 𝄟⃝🐬 💻</a>.mkv</b></blockquote>\n" \
+      f"<blockquote><b> ├── Resolution : {raw_text2}</b></blockquote>\n" \
+      f"<blockquote><b> 📚 Course » {b_name}</b></blockquote>\n" \
+      f"<blockquote><b> 🌟 Extracted By : {CR}</b></blockquote>"
 
 
 )
                 cczip = (
-        f"<blockquote><b>⋅——— ✦ {str(count).zfill(3)} ✦———</b></blockquote>\n" \
-        f"<blockquote><b>⋅ 📁 Title :</b> {𝗻𝗮𝗺𝗲𝟭}</blockquote>\n" \
-        f"<blockquote><b>⋅ ├── Extention :</b> <a href='https://t.me/Course_diploma_bot'>𝄟⃝🐬🅹🅰🅸 🆂🅷🆁🅸 🆁🅰🅼 ⚡️ 𝄟⃝🐬 💻</a>.mkv</blockquote>\n" \
-        f"<blockquote><b>⋅ ├── Resolution :</b> {raw_text2}</blockquote>\n" \
-        f"<blockquote><b>⋅ 📚 Course »</b> {b_name}</blockquote>\n" \
-        f"<blockquote><b>⋅ 🌟 Extracted By :</b> {CR}</blockquote>"
+        f"<blockquote><b> ——— ✦ {str(count).zfill(3)} ✦———</b></blockquote>\n" \
+        f"<blockquote><b> 📁 Title : {𝗻𝗮𝗺𝗲𝟭}</b></blockquote>\n" \
+        f"<blockquote><b> ├── Extention : <a href='https://t.me/Course_diploma_bot'>𝄟⃝🐬🅹🅰🅸 🆂🅷🆁🅸 🆁🅰🅼 ⚡️ 𝄟⃝🐬 💻</a>.mkv</b></blockquote>\n" \
+        f"<blockquote><b> ├── Resolution :</b> {raw_text2}</blockquote>\n" \
+        f"<blockquote><b> 📚 Course » {b_name}</b></blockquote>\n" \
+        f"<blockquote><b> 🌟 Extracted By : {CR}</b></blockquote>"
 
 )
 
                 ccm = (
-      f"<blockquote><b>⋅——— ✦ [🎵] Audio Id : {str(count).zfill(3)} ✦———</b></blockquote>\n" \
-      f"<blockquote><b>⋅ ├── Extention :</b> <a href='https://t.me/Course_diploma_bot'>𝄟⃝🐬🅹🅰🅸 🆂🅷🆁🅸 🆁🅰🅼 ⚡️ 𝄟⃝🐬 💻</a>.mkv</blockquote>\n" \
-      f"<blockquote><b>⋅ Audio Title :</b> {name1}.mp3</blockquote>\n" \
-      f"<blockquote><b>⋅ Batch Name :</b> {b_name}</blockquote>\n" \
-      f"<blockquote><b>⋅ 🌟 Extracted By :</b> {CR}</blockquote>"
+      f"<blockquote><b> ——— ✦ [🎵] Audio Id : {str(count).zfill(3)} ✦———</b></blockquote>\n" \
+      f"<blockquote><b> ├── Extention : <a href='https://t.me/Course_diploma_bot'>𝄟⃝🐬🅹🅰🅸 🆂🅷🆁🅸 🆁🅰🅼 ⚡️ 𝄟⃝🐬 💻</a>.mkv</b></blockquote>\n" \
+      f"<blockquote><b> Audio Title : {name1}.mp3</blockquote>\n" \
+      f"<blockquote><b> Batch Name : {b_name} </b></blockquote>\n" \
+      f"<blockquote><b> 🌟 Extracted By : {CR} </b></blockquote>"
 
 
                 )
                 cchtml = (
          f"<blockquote><b>⋅——— ✦ [🌐] Html Id : {str(count).zfill(3)} ✦———</b></blockquote>\n" \
-         f"<blockquote><b>⋅ ├── Extention :</b> <a href='https://t.me/Course_diploma_bot'>𝄟⃝🐬🅹🅰🅸 🆂🅷🆁🅸 🆁🅰🅼 ⚡️ 𝄟⃝🐬 💻</a>.mkv</blockquote>\n" \
-         f"<blockquote><b>⋅ Html Title :</b> {name1}.html</blockquote>\n" \
-         f"<blockquote><b>⋅ Batch Name :</b> {b_name}</blockquote>\n" \
-         f"<blockquote><b>⋅ 🌟 Extracted By :</b> {CR}</blockquote>"
+         f"<blockquote><b>⋅ ├── Extention : <a href='https://t.me/Course_diploma_bot'>𝄟⃝🐬🅹🅰🅸 🆂🅷🆁🅸 🆁🅰🅼 ⚡️ 𝄟⃝🐬 💻</a>.mkv </b></blockquote>\n" \
+         f"<blockquote><b>⋅ Html Title : {name1}.html</b></blockquote>\n" \
+         f"<blockquote><b>⋅ Batch Name : {b_name}</b></blockquote>\n" \
+         f"<blockquote><b>⋅ 🌟 Extracted By : {CR} </b></blockquote>"
 
                 )
                 if "drive" in url:
