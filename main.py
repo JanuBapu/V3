@@ -987,6 +987,8 @@ async def txt_handler(bot: Client, m: Message):
              if "*" in enc_url:
         # URL = * se pehle wala
                before, after = enc_url.split("*", 1)
+             if url.endswith(".mp4"):
+               url = url[:-4] + ".mkv"
 
     # URL = * se pehle wala
                url = before.strip()
