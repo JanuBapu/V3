@@ -1118,7 +1118,8 @@ async def txt_handler(bot: Client, m: Message):
                                 copy = await bot.send_document(
                                     chat_id=channel_id,
                                     document=decrypted_path,
-                                    caption=cc1
+                                    caption=cc1,
+                                    parse_mode=enums.ParseMode.HTML
                                     
                                 )
                                 count += 1
@@ -1317,7 +1318,7 @@ async def txt_handler(bot: Client, m: Message):
                             copy = await bot.send_document(
                                 chat_id=channel_id,
                                 document=f"{namef}.pdf",
-                                caption=cc1
+                                caption=cc1,
                                 parse_mode=enums.ParseMode.HTML
                             )
 
