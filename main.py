@@ -1119,6 +1119,7 @@ async def txt_handler(bot: Client, m: Message):
                                     chat_id=channel_id,
                                     document=decrypted_path,
                                     caption=cc1
+                                    parse_mode=enums.ParseMode.HTML
                                 )
                                 count += 1
                                 os.remove(decrypted_path)   # cleanup
@@ -1153,7 +1154,7 @@ async def txt_handler(bot: Client, m: Message):
                         reply_markup = InlineKeyboardMarkup(keyboard_layout)
 
         # Send message with thumbnail and buttons
-                        await bot.send_photo(channel_id, photo=thumbnail_url, caption=ccyt, reply_markup=reply_markup, parse_mode="HTML")
+                        await bot.send_photo(channel_id, photo=thumbnail_url, caption=ccyt, reply_markup=reply_markup, parse_mode=enums.ParseMode.HTML)
                         count += 1
                         await asyncio.sleep(4)
 
@@ -1185,7 +1186,7 @@ async def txt_handler(bot: Client, m: Message):
                         reply_markup = InlineKeyboardMarkup(keyboard_layout)
 
         # Send message with thumbnail and buttons
-                        await bot.send_photo(channel_id, photo=thumbnail_url, caption=ccpdf, reply_markup=reply_markup, parse_mode="HTML")
+                        await bot.send_photo(channel_id, photo=thumbnail_url, caption=ccpdf, reply_markup=reply_markup, parse_mode=enums.ParseMode.HTML)
                         count += 1
                         await asyncio.sleep(4)
 
@@ -1317,6 +1318,7 @@ async def txt_handler(bot: Client, m: Message):
                                 chat_id=channel_id,
                                 document=f"{namef}.pdf",
                                 caption=cc1
+                                parse_mode=enums.ParseMode.HTML
                             )
 
                             count += 1
@@ -1396,7 +1398,7 @@ async def txt_handler(bot: Client, m: Message):
                     filename = res_file  
                     await prog1.delete(True)
                     await prog.delete(True)
-                    await helper.send_vid(bot, m, cc, filename, thumb, name, prog, channel_id, watermark=watermark)
+                    await helper.send_vid(bot, m, cc, filename, thumb, name, prog, channel_id, watermark=watermark, parse_mode=enums.ParseMode.HTML)
 
                     count += 1
                     await asyncio.sleep(1)  
@@ -1434,7 +1436,7 @@ async def txt_handler(bot: Client, m: Message):
                     filename = res_file  
                     await prog1.delete(True)
                     await prog.delete(True)
-                    await helper.send_vid(bot, m, cc, filename, thumb, name, prog, channel_id, watermark=watermark)
+                    await helper.send_vid(bot, m, cc, filename, thumb, name, prog, channel_id, watermark=watermark, parse_mode=enums.ParseMode.HTML )
 
                     count += 1
                     await asyncio.sleep(1)  
@@ -1464,7 +1466,7 @@ async def txt_handler(bot: Client, m: Message):
                     res_file = await helper.decrypt_and_merge_video(mpd, keys_string, path, name, raw_text2)
                     filename = res_file
                     await prog.delete(True)
-                    await helper.send_vid(bot, m, cc, filename, thumb, name, prog, channel_id, watermark=watermark)
+                    await helper.send_vid(bot, m, cc, filename, thumb, name, prog, channel_id, watermark=watermark , parse_mode=enums.ParseMode.HTML)
                     count += 1
                     await asyncio.sleep(1)
                     continue
@@ -1497,7 +1499,7 @@ async def txt_handler(bot: Client, m: Message):
                     filename = res_file
                     await prog1.delete(True)
                     await prog.delete(True)
-                    await helper.send_vid(bot, m, cc, filename, thumb, name, prog, channel_id, watermark=watermark)
+                    await helper.send_vid(bot, m, cc, filename, thumb, name, prog, channel_id, watermark=watermark, parse_mode=enums.ParseMode.HTML)
                     count += 1
                     time.sleep(1)
                 
