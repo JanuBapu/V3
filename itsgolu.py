@@ -53,18 +53,20 @@ import os
 import asyncio
 import subprocess
 
-async def download_appx_m3u8(url: str, name: str) -> str | None:
-    """
-    Download appx m3u8 video and return output file path only
-    """
+import os
+import subprocess
 
+def download_appx_m3u8(url: str, name: str) -> str | None:
+    """
+    Download m3u8 video using ffmpeg (sync version)
+    """
     os.makedirs("downloads", exist_ok=True)
     output = f"downloads/{name}.mp4"
 
     headers = (
         "User-Agent: Mozilla/5.0 (Linux; Android 13)\r\n"
         "Referer: https://player.akamai.net.in/\r\n"
-        "Origin: https://akstechnicalclasses.classx.co.in"
+        "Origin: https://akstechnicalclasses.classx.co.in\r\n"
     )
 
     cmd = [
@@ -77,20 +79,15 @@ async def download_appx_m3u8(url: str, name: str) -> str | None:
         output
     ]
 
-    process = await asyncio.create_subprocess_exec(
-        *cmd,
-        stdout=asyncio.subprocess.DEVNULL,
-        stderr=asyncio.subprocess.DEVNULL
-    )
-
-    await process.wait()
+    # run ffmpeg synchronously
+    process = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
     if process.returncode == 0 and os.path.exists(output):
+        print("✅ Download complete:", output)
         return output
-
-    return None
-
-
+    else:
+        print("❌ ffmpeg error:", process.stderr.decode())
+        return None
 
 def download_youtube(url, name, output_path="downloads"):
     if not os.path.exists(output_path):
@@ -800,12 +797,10 @@ async def download_video(url, cmd, name):
     Async download handler with retries and special cases.
     """
     # Special cases first
-    if "https://transcoded-" in url and ".m3u8" in url:
+    if "transcoded" in url and ".m3u8" in url:
         print("⚡ Handling transcoded m3u8 stream")
         return download_appx_m3u8(url, name)
-    if "appx" in url and ".m3u8" in url:
-        print("⚡ Handling appx m3u8 stream")
-        return await download_appx_m3u8(url, name)
+    
     if "appx" in url and ".zip" in url:
         print("⚡ Handling appx zip archive")
         return process_zip_to_video(url, name)
@@ -856,11 +851,10 @@ async def download_video(url, cmd, name):
         logging.error(f"Error checking file: {exc}")
         return name
 def download_and_decrypt_video(url: str, name: str, key: str = None) -> str | None:
-    if "https://transcoded-" in url and ".m3u8" in url:
+    if "transcoded" in url and ".m3u8" in url:
+        print("⚡ Handling appx m3u8 stream")
         return download_appx_m3u8(url, name)
-    if "appx" in url and ".m3u8" in url:
-        # Handle appx m3u8 links
-        return download_appx_m3u8(url, name)
+    
 
     if "appx" in url and ".zip" in url:
         return process_zip_to_video(url, name)

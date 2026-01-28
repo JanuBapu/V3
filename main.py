@@ -72,6 +72,63 @@ import pyromod.listen
 pyromod.listen.Client.listen = pyromod.listen.listen
 
 from db import db
+import os, requests, time
+from urllib.parse import unquote, urlparse
+from pyrogram.errors import FloodWait
+
+# PDF Download function
+def download_pdf(url: str, filename: str) -> str | None:
+    url = unquote(url)
+    origin = f"{urlparse(url).scheme}://{urlparse(url).netloc}"
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Linux; Android 13)",
+        "Referer": origin,
+        "Origin": origin,
+        "Accept": "*/*",
+        "Connection": "keep-alive"
+    }
+
+    file_path = f"/tmp/{filename}.pdf"
+    try:
+        print(f"[DEBUG] Downloading: {url}")
+        r = requests.get(url, headers=headers, stream=True, timeout=(10, 180))
+        print(f"[DEBUG] Status: {r.status_code}")
+
+        if r.status_code not in (200, 206):
+            print(f"[ERROR] Bad status {r.status_code}, body={r.text[:200]}")
+            return None
+
+        with open(file_path, "wb") as f:
+            for chunk in r.iter_content(chunk_size=256*1024):
+                if chunk:
+                    f.write(chunk)
+
+        print(f"[DEBUG] File saved: {file_path}")
+        return file_path
+
+    except Exception as e:
+        print(f"[EXCEPTION] {e}")
+        return None
+
+
+# PDF Decrypt function
+def decrypt_pdf(file_path: str, key: str, out_name: str = "final.pdf") -> str | None:
+    if not file_path or not os.path.exists(file_path):
+        return None
+    key_bytes = key.encode()
+    size = min(28, os.path.getsize(file_path))
+    with open(file_path, "rb") as f:
+        data = bytearray(f.read())
+    for i in range(size):
+        data[i] ^= key_bytes[i] if i < len(key_bytes) else i
+    out_path = f"/tmp/{out_name}"
+    with open(out_path, "wb") as f:
+        f.write(data)
+    return out_path
+
+
+# Main logic (same as your elif block)
+
 
 auto_flags = {}
 auto_clicked = False
@@ -388,7 +445,68 @@ async def id_command(client, message: Message):
     chat_id = message.chat.id
     await message.reply_text(
         f"<blockquote>The ID of this chat id is:</blockquote>\n`{chat_id}`"
+
     )
+import os
+import requests
+import asyncio
+from urllib.parse import unquote, urlparse
+from pyrogram.errors import FloodWait
+
+# --- Download function ---
+def download_pdf(url: str, filename: str) -> str | None:
+    url = unquote(url)
+    origin = f"{urlparse(url).scheme}://{urlparse(url).netloc}"
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Linux; Android 13)",
+        "Referer": origin,
+        "Origin": origin,
+        "Accept": "*/*",
+        "Connection": "keep-alive"
+    }
+
+    file_path = f"{filename}.pdf"
+    try:
+        print(f"[DEBUG] Downloading: {url}")
+        r = requests.get(url, headers=headers, stream=True, timeout=(10, 180))
+        print(f"[DEBUG] Status: {r.status_code}")
+
+        if r.status_code not in (200, 206):
+            print(f"[ERROR] Bad status {r.status_code}, body={r.text[:200]}")
+            return None
+
+        with open(file_path, "wb") as f:
+            for chunk in r.iter_content(chunk_size=256*1024):
+                if chunk:
+                    f.write(chunk)
+
+        print(f"[DEBUG] File saved: {file_path}")
+        return file_path
+
+    except Exception as e:
+        print(f"[EXCEPTION] {e}")
+        return None
+
+
+# --- Decrypt function ---
+def decrypt_pdf(file_path: str, key: str, out_name: str = "final.pdf") -> str | None:
+    if not file_path or not os.path.exists(file_path):
+        return None
+    key_bytes = key.encode()
+    size = min(28, os.path.getsize(file_path))
+    with open(file_path, "rb") as f:
+        data = bytearray(f.read())
+    for i in range(size):
+        data[i] ^= key_bytes[i] if i < len(key_bytes) else i
+    out_path = out_name
+    with open(out_path, "wb") as f:
+        f.write(data)
+    print(f"[DEBUG] Decrypted file saved: {out_path}")
+    return out_path
+
+
+# --- Bot handler example ---
+
 
 
 
@@ -820,8 +938,7 @@ async def txt_handler(bot: Client, m: Message):
                 url = f"https://anonymouspwplayer-0e5a3f512dec.herokuapp.com/pw?url={url}&token={raw_text4}"
 
             if "edge.api.brightcove.com" in url:
-                bcov = f'bcov_auth={cwtoken}'
-                url = url.split("bcov_auth")[0]+bcov
+                pass
             elif "embed" in url or "youtube.com" in url or "youtu.be" in url:
                 youtube_url = url
                 api_url = (
@@ -926,27 +1043,52 @@ async def txt_handler(bot: Client, m: Message):
 
             try:
                 cc = (
-    f"<b>🏷️ Iɴᴅᴇx ID  :</b> {str(count).zfill(3)}\n\n"
-    f"<b>🎞️  Tɪᴛʟᴇ :</b> {name1} \n\n"
-    f"<blockquote>📚  𝗕ᴀᴛᴄʜ : {b_name}</blockquote>"
-    f"\n\n<b>🎓  Uᴘʟᴏᴀᴅ Bʏ : {CR}</b>"
+    f"<blockquote><b>⋅——— ✦ {str(count).zfill(3)} ✦———</b></blockquote>\n" \
+     f"<blockquote><b>⋅ 🎞️ Title :</b> {𝗻𝗮𝗺𝗲𝟭}</blockquote>\n" \
+     f"<blockquote><b>⋅ ├── Extention :</b> <a href='https://t.me/Course_diploma_bot'>𝄟⃝🐬🅹🅰🅸 🆂🅷🆁🅸 🆁🅰🅼 ⚡️ 𝄟⃝🐬 💻</a>.mkv</blockquote>\n" \
+     f"<blockquote><b>⋅ ├── Resolution :</b> {raw_text2}</blockquote>\n" \
+     f"<blockquote><b>⋅ 📚 Course »</b> {b_name}</blockquote>\n" \
+     f"<blockquote><b>⋅ 🌟 Extracted By :</b> {CR}</blockquote>"
+
+
 )
                 cc1 = (
-    f"<b>🏷️ Iɴᴅᴇx ID :</b> {str(count).zfill(3)}\n\n"
-    f"<b>📑  Tɪᴛʟᴇ :</b> {name1} \n\n"
-    f"<blockquote>📚  𝗕ᴀᴛᴄʜ : {b_name}</blockquote>"
-    f"\n\n<b>🎓  Uᴘʟᴏᴀᴅ Bʏ : {CR}</b>"
+    f"<blockquote><b>⋅——— ✦ {str(count).zfill(3)} ✦———</b></blockquote>\n" \
+      f"<blockquote><b>⋅ 📁 Title :</b> {𝗻𝗮𝗺𝗲𝟭}</blockquote>\n" \
+      f"<blockquote><b>⋅ ├── Extention :</b> <a href='https://t.me/Course_diploma_bot'>𝄟⃝🐬🅹🅰🅸 🆂🅷🆁🅸 🆁🅰🅼 ⚡️ 𝄟⃝🐬 💻</a>.mkv</blockquote>\n" \
+      f"<blockquote><b>⋅ ├── Resolution :</b> {raw_text2}</blockquote>\n" \
+      f"<blockquote><b>⋅ 📚 Course »</b> {b_name}</blockquote>\n" \
+      f"<blockquote><b>⋅ 🌟 Extracted By :</b> {CR}</blockquote>"
+
+
 )
-                cczip = f'[📁]Zip Id : {str(count).zfill(3)}\n**Zip Title :** `{name1} .zip`\n<blockquote><b>Batch Name :</b> {b_name}</blockquote>\n\n**Extracted by➤**{CR}\n' 
-                ccimg = (
-    f"<b>🏷️ Iɴᴅᴇx ID <b>: {str(count).zfill(3)} \n\n"
-    f"<b>🖼️  Tɪᴛʟᴇ</b> : {name1} \n\n"
-    f"<blockquote>📚  𝗕ᴀᴛᴄʜ : {b_name}</blockquote>"
-    f"\n\n<b>🎓  Uᴘʟᴏᴀᴅ Bʏ : {CR}</b>"
+                cczip = (
+        f"<blockquote><b>⋅——— ✦ {str(count).zfill(3)} ✦———</b></blockquote>\n" \
+        f"<blockquote><b>⋅ 📁 Title :</b> {𝗻𝗮𝗺𝗲𝟭}</blockquote>\n" \
+        f"<blockquote><b>⋅ ├── Extention :</b> <a href='https://t.me/Course_diploma_bot'>𝄟⃝🐬🅹🅰🅸 🆂🅷🆁🅸 🆁🅰🅼 ⚡️ 𝄟⃝🐬 💻</a>.mkv</blockquote>\n" \
+        f"<blockquote><b>⋅ ├── Resolution :</b> {raw_text2}</blockquote>\n" \
+        f"<blockquote><b>⋅ 📚 Course »</b> {b_name}</blockquote>\n" \
+        f"<blockquote><b>⋅ 🌟 Extracted By :</b> {CR}</blockquote>"
+
 )
-                ccm = f'[🎵]Audio Id : {str(count).zfill(3)}\n**Audio Title :** `{name1} .mp3`\n<blockquote><b>Batch Name :</b> {b_name}</blockquote>\n\n**Extracted by➤**{CR}\n'
-                cchtml = f'[🌐]Html Id : {str(count).zfill(3)}\n**Html Title :** `{name1} .html`\n<blockquote><b>Batch Name :</b> {b_name}</blockquote>\n\n**Extracted by➤**{CR}\n'
-                  
+
+                ccm = (
+      f"<blockquote><b>⋅——— ✦ [🎵] Audio Id : {str(count).zfill(3)} ✦———</b></blockquote>\n" \
+      f"<blockquote><b>⋅ ├── Extention :</b> <a href='https://t.me/Course_diploma_bot'>𝄟⃝🐬🅹🅰🅸 🆂🅷🆁🅸 🆁🅰🅼 ⚡️ 𝄟⃝🐬 💻</a>.mkv</blockquote>\n" \
+      f"<blockquote><b>⋅ Audio Title :</b> {name1}.mp3</blockquote>\n" \
+      f"<blockquote><b>⋅ Batch Name :</b> {b_name}</blockquote>\n" \
+      f"<blockquote><b>⋅ 🌟 Extracted By :</b> {CR}</blockquote>"
+
+
+                )
+                cchtml = (
+         f"<blockquote><b>⋅——— ✦ [🌐] Html Id : {str(count).zfill(3)} ✦———</b></blockquote>\n" \
+         f"<blockquote><b>⋅ ├── Extention :</b> <a href='https://t.me/Course_diploma_bot'>𝄟⃝🐬🅹🅰🅸 🆂🅷🆁🅸 🆁🅰🅼 ⚡️ 𝄟⃝🐬 💻</a>.mkv</blockquote>\n" \
+         f"<blockquote><b>⋅ Html Title :</b> {name1}.html</blockquote>\n" \
+         f"<blockquote><b>⋅ Batch Name :</b> {b_name}</blockquote>\n" \
+         f"<blockquote><b>⋅ 🌟 Extracted By :</b> {CR}</blockquote>"
+
+                )
                 if "drive" in url:
                     try:
                         ka = await helper.download(url, name)
@@ -957,26 +1099,107 @@ async def txt_handler(bot: Client, m: Message):
                         await m.reply_text(str(e))
                         time.sleep(e.x)
                         continue
+
+                
+
+                elif ".pdf" in url and "*" in url:
+                    url, key = url.split("*", 1)
+                    try:
+                        # Download
+                        downloaded_path = download_pdf(url, namef)
+                        if not downloaded_path:
+                            await m.reply_text(f"❌ Download failed for {namef}")
+                        else:
+                            # Decrypt
+                            decrypted_path = decrypt_pdf(downloaded_path, key, out_name=f"{namef}.pdf")
+                            if not decrypted_path:
+                                await m.reply_text(f"❌ Decryption failed for {namef}")
+                            else:
+                                # Send PDF
+                                copy = await bot.send_document(
+                                    chat_id=channel_id,
+                                    document=decrypted_path,
+                                    caption=cc1
+                                )
+                                count += 1
+                                os.remove(decrypted_path)   # cleanup
+                    except FloodWait as e:
+                        await m.reply_text(str(e))
+                        time.sleep(e.x)
+                        continue
+                elif "embed" in url or "youtube.com" in url or "youtu.be" in url:
+                    try:
+                        print(f"📺 YouTube Video - sending with thumbnail and buttons")
+
+        # Thumbnail (can be default or custom)
+                        thumbnail_url = f"https://img.youtube.com/vi/{url.split('v=')[-1].split('&')[0]}/hqdefault.jpg"  # default YouTube thumbnail
+        # If you want to use a custom thumbnail, replace thumbnail_url with your own hosted image
+
+        # HTML caption block
+                        ccyt = f"<blockquote><b>⋅——— ✦ [📺] YouTube Id : {str(count).zfill(3)} ✦———</b></blockquote>\n" \
+                               f"<blockquote><b>⋅ 🎬 Title :</b> {name1}</blockquote>\n" \
+                               f"<blockquote><b>⋅ ├── Platform :</b> <a href='{url}'>YouTube</a></blockquote>\n" \
+                               f"<blockquote><b>⋅ ├── Resolution :</b> {raw_text2}</blockquote>\n" \
+                               f"<blockquote><b>⋅ 📚 Course »</b> {b_name}</blockquote>\n" \
+                               f"<blockquote><b>⋅ 🌟 Extracted By :</b> {CR}</blockquote>\n\n" \
+                               f"<blockquote><b>🔗 It seems that this video might help you — <a href='{url}'>click here to watch</a></b></blockquote>\n" \
+                               f"<blockquote><b>🎬 Stream on <a href='{url}'>Jay Shree Ram Player</a></b></blockquote>"
+
+        # Buttons
+                        keyboard_layout = [
+                        [InlineKeyboardButton("▶️ Watch on YouTube", url=url)],
+                        [InlineKeyboardButton("🎬 Stream on Jay Shree Ram Player", url=url)]
+                                 ]
+                        reply_markup = InlineKeyboardMarkup(keyboard_layout)
+
+        # Send message with thumbnail and buttons
+                        await bot.send_photo(channel_id, photo=thumbnail_url, caption=ccyt, reply_markup=reply_markup, parse_mode="HTML")
+                        count += 1
+                        await asyncio.sleep(4)
+
+                    except FloodWait as e:
+                        await m.reply_text(str(e))
+                        time.sleep(e.x)
+                        continue
                 elif "https://apps-s3-prod.utkarshapp.com/admin_v1/file_manager/pdf" in url:
-                        try:
-                            print(f"⚠️ Utkarsh PDF - sending link only (no download)")
-                            keyboard_layout = [
-                                [InlineKeyboardButton("📖 View PDF ", url=url)]
-                            ]
-                            reply_markup = InlineKeyboardMarkup(keyboard_layout)
-                            await bot.send_message(channel_id, cc1, reply_markup=reply_markup, disable_web_page_preview=True)
-                            count += 1
-                            await asyncio.sleep(4)
-                        except FloodWait as e:
-                            await m.reply_text(str(e))
-                            time.sleep(e.x)
-                            continue
+                    try:
+                        print(f"⚠️ Utkarsh PDF - sending with thumbnail and buttons")
+
+        # Thumbnail (custom image you provided)
+                        thumbnail_url = "https://i.ibb.co/HL5FWsHX/Chat-GPT-Image-Jan-28-2026-07-21-48-PM.png"
+
+        # HTML caption block
+                        ccpdf = f"<blockquote><b>⋅——— ✦ [📖] PDF Id : {str(count).zfill(3)} ✦———</b></blockquote>\n" \
+                                f"<blockquote><b>⋅ 📄 Title :</b> {name1}.pdf</blockquote>\n" \
+                                f"<blockquote><b>⋅ ├── Platform :</b> Utkarsh App</blockquote>\n" \
+                                f"<blockquote><b>⋅ 📚 Course »</b> {b_name}</blockquote>\n" \
+                                f"<blockquote><b>⋅ 🌟 Extracted By :</b> {CR}</blockquote>\n\n" \
+                                f"<blockquote><b>🔗 It seems that this PDF might help you — <a href='{url}'>click here to view</a></b></blockquote>\n" \
+                                f"<blockquote><b>📖 View on <a href='{url}'>Utkarsh PDF Reader</a></b></blockquote>"
+
+        # Buttons
+                        keyboard_layout = [
+                        [InlineKeyboardButton("📖 View PDF", url=url)]
+                        ]
+                        reply_markup = InlineKeyboardMarkup(keyboard_layout)
+
+        # Send message with thumbnail and buttons
+                        await bot.send_photo(channel_id, photo=thumbnail_url, caption=ccpdf, reply_markup=reply_markup, parse_mode="HTML")
+                        count += 1
+                        await asyncio.sleep(4)
+
+                    except FloodWait as e:
+                        await m.reply_text(str(e))
+                        time.sleep(e.x)
+                        continue
                 
                 elif ".pdf" in url:
                     final_url = url
                     need_referer = False
                     namef = name1
                     topic = None   # safe dummy value
+                    if "*" in url:
+                        url = url.split("*")[0]
                     if "appxsignurl.vercel.app/appx/" in url:
                         try:
                             # Step 1: Directly use the original URL
@@ -1034,6 +1257,7 @@ async def txt_handler(bot: Client, m: Message):
                             except:
                                 namef = name1
                         need_referer = True
+                    
                     if "cwmediabkt99" in url:
                         max_retries = 3  # Define the maximum number of retries
                         retry_delay = 4  # Delay between retries in seconds
@@ -1139,7 +1363,7 @@ async def txt_handler(bot: Client, m: Message):
                     except FloodWait as e:
                         await m.reply_text(str(e))
                         time.sleep(e.x)
-                        continue    
+                        continue
                 elif "zip" in url:
     # handle appx/encrypted/appxsignurl/dragoapi with *key
                     remaining_links = len(links) - count
@@ -1270,6 +1494,7 @@ async def txt_handler(bot: Client, m: Message):
                     prog1 = await m.reply_text(Show1, disable_web_page_preview=True)
                     res_file = await helper.download_video(url, cmd, name)
                     filename = res_file
+                    await prog1.delete(True)
                     await prog.delete(True)
                     await helper.send_vid(bot, m, cc, filename, thumb, name, prog, channel_id, watermark=watermark)
                     count += 1
