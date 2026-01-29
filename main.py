@@ -941,7 +941,23 @@ async def txt_handler(bot: Client, m: Message):
             if "edge.api.brightcove.com" in url:
                 pass
             elif "embed" in url or "youtube.com" in url or "youtu.be" in url:
-                pass
+                
+    # embed URL handle
+                if "youtube.com/embed/" in url:
+                  video_id = url.split("embed/")[1].split("?")[0]
+    # short URL handle
+                elif "youtu.be/" in url:
+                  video_id = url.split("youtu.be/")[1].split("?")[0]
+
+    # normal watch URL
+                elif "watch?v=" in url:
+                  video_id = url.split("watch?v=")[1].split("&")[0]
+
+                else:
+                  video_id = None
+
+                if video_id:
+                  url = f"https://www.youtube.com/watch?v={video_id}"
        
 
 
@@ -987,8 +1003,8 @@ async def txt_handler(bot: Client, m: Message):
              if "*" in enc_url:
         # URL = * se pehle wala
                before, after = enc_url.split("*", 1)
-             if url.endswith(".mp4"):
-               url = url[:-4] + ".mkv"
+             if ".mp4" in enc_url:
+               url = url.replace(".mp4", ".mkv")
 
     # URL = * se pehle wala
                
