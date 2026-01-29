@@ -76,6 +76,9 @@ from db import db
 import os, requests, time
 from urllib.parse import unquote, urlparse
 from pyrogram.errors import FloodWait
+height = 1080
+width = 1920
+
 
 # PDF Download function
 '''def download_pdf(url: str, filename: str) -> str | None:
@@ -1056,7 +1059,7 @@ async def txt_handler(bot: Client, m: Message):
      f"<blockquote><b>⋅——— ✦ {str(count).zfill(3)} ✦——— </b></blockquote>\n\n" \
      f"<blockquote><b> 🎞️ Title : {𝗻𝗮𝗺𝗲𝟭}</b></blockquote>\n\n" \
      f"<blockquote><b> ├── Extention : <a href='https://t.me/Course_diploma_bot'>𝄟⃝🐬🅹🅰🅸 🆂🅷🆁🅸 🆁🅰🅼 ⚡️ 𝄟⃝🐬 💻</a>.mkv</b></blockquote>\n" \
-     f"<blockquote><b> ├── Resolution : 1080 x 1920 </b></blockquote>\n\n" \
+     f"├── Resolution : {height}p ({width} × {height}\n\n" \
      f"<blockquote><b> 📚 Course » {b_name}</b></blockquote>\n\n" \
      f"<blockquote><b> 🌟 Extracted By : {CR}</b></blockquote>"
 
@@ -1065,8 +1068,8 @@ async def txt_handler(bot: Client, m: Message):
                 cc1 = (
     f"<blockquote><b>⋅——— ✦ {str(count).zfill(3)} ✦——— </b></blockquote>\n\n" \
       f"<blockquote><b> 📁 Title :{𝗻𝗮𝗺𝗲𝟭}</b></blockquote>\n\n" \
-      f"<blockquote><b> ├── Extention : <a href='https://t.me/Course_diploma_bot'>𝄟⃝🐬🅹🅰🅸 🆂🅷🆁🅸 🆁🅰🅼 ⚡️ 𝄟⃝🐬 💻</a>.mkv</b></blockquote>\n" \
-      f"<blockquote><b> ├── Resolution : 1080 x 1920  </b></blockquote>\n\n" \
+      f"<blockquote><b> ├── Extention : <a href='https://t.me/Course_diploma_bot'>𝄟⃝🐬🅹🅰🅸 🆂🅷🆁🅸 🆁🅰🅼 ⚡️ 𝄟⃝🐬 💻</a>.pdf</b></blockquote>\n" \
+      f"├── Resolution : {height}p ({width} × {height}\n\n" \
       f"<blockquote><b> 📚 Course » {b_name}</b></blockquote>\n\n" \
       f"<blockquote><b> 🌟 Extracted By : {CR}</b></blockquote>"
 
@@ -1075,8 +1078,8 @@ async def txt_handler(bot: Client, m: Message):
                 cczip = (
         f"<blockquote><b> ——— ✦ {str(count).zfill(3)} ✦———</b></blockquote>\n" \
         f"<blockquote><b> 📁 Title : {𝗻𝗮𝗺𝗲𝟭}</b></blockquote>\n" \
-        f"<blockquote><b> ├── Extention : <a href='https://t.me/Course_diploma_bot'>𝄟⃝🐬🅹🅰🅸 🆂🅷🆁🅸 🆁🅰🅼 ⚡️ 𝄟⃝🐬 💻</a>.mkv</b></blockquote>\n" \
-        f"<blockquote><b> ├── Resolution :</b> {raw_text2}</blockquote>\n" \
+        f"<blockquote><b> ├── Extention : <a href='https://t.me/Course_diploma_bot'>𝄟⃝🐬🅹🅰🅸 🆂🅷🆁🅸 🆁🅰🅼 ⚡️ 𝄟⃝🐬 💻</a>.zip</b></blockquote>\n" \
+        f"├── Resolution : {height}p ({width} × {height}\n\n" \
         f"<blockquote><b> 📚 Course » {b_name}</b></blockquote>\n" \
         f"<blockquote><b> 🌟 Extracted By : {CR}</b></blockquote>"
 
@@ -1084,7 +1087,7 @@ async def txt_handler(bot: Client, m: Message):
 
                 ccm = (
       f"<blockquote><b> ——— ✦ [🎵] Audio Id : {str(count).zfill(3)} ✦———</b></blockquote>\n" \
-      f"<blockquote><b> ├── Extention : <a href='https://t.me/Course_diploma_bot'>𝄟⃝🐬🅹🅰🅸 🆂🅷🆁🅸 🆁🅰🅼 ⚡️ 𝄟⃝🐬 💻</a>.mkv</b></blockquote>\n" \
+      f"<blockquote><b> ├── Extention : <a href='https://t.me/Course_diploma_bot'>𝄟⃝🐬🅹🅰🅸 🆂🅷🆁🅸 🆁🅰🅼 ⚡️ 𝄟⃝🐬 💻</a>.audio</b></blockquote>\n" \
       f"<blockquote><b> Audio Title : {name1}.mp3</blockquote>\n" \
       f"<blockquote><b> Batch Name : {b_name} </b></blockquote>\n" \
       f"<blockquote><b> 🌟 Extracted By : {CR} </b></blockquote>"
@@ -1093,7 +1096,7 @@ async def txt_handler(bot: Client, m: Message):
                 )
                 cchtml = (
          f"<blockquote><b>⋅——— ✦ [🌐] Html Id : {str(count).zfill(3)} ✦———</b></blockquote>\n" \
-         f"<blockquote><b>⋅ ├── Extention : <a href='https://t.me/Course_diploma_bot'>𝄟⃝🐬🅹🅰🅸 🆂🅷🆁🅸 🆁🅰🅼 ⚡️ 𝄟⃝🐬 💻</a>.mkv </b></blockquote>\n" \
+         f"<blockquote><b>⋅ ├── Extention : <a href='https://t.me/Course_diploma_bot'>𝄟⃝🐬🅹🅰🅸 🆂🅷🆁🅸 🆁🅰🅼 ⚡️ 𝄟⃝🐬 💻</a>.html </b></blockquote>\n" \
          f"<blockquote><b>⋅ Html Title : {name1}.html</b></blockquote>\n" \
          f"<blockquote><b>⋅ Batch Name : {b_name}</b></blockquote>\n" \
          f"<blockquote><b>⋅ 🌟 Extracted By : {CR} </b></blockquote>"
@@ -1104,8 +1107,8 @@ async def txt_handler(bot: Client, m: Message):
                 ccimg = (
       f"<blockquote><b>⋅——— ✦ {str(count).zfill(3)} ✦———</b></blockquote>\n\n" \
       f"<blockquote><b>⋅ 📁 Title :</b> {𝗻𝗮𝗺𝗲𝟭}</blockquote>\n\n" \
-      f"<blockquote><b>⋅ ├── Extention :</b> <a href='https://t.me/Course_diploma_bot'>𝄟⃝🐬🅹🅰🅸 🆂🅷🆁🅸 🆁🅰🅼 ⚡️ 𝄟⃝🐬 💻</a>.mkv</blockquote>\n" \
-      f"<blockquote><b>⋅ ├── Resolution :</b> 1080 x 1920 </blockquote>\n\n" \
+      f"<blockquote><b>⋅ ├── Extention :</b> <a href='https://t.me/Course_diploma_bot'>𝄟⃝🐬🅹🅰🅸 🆂🅷🆁🅸 🆁🅰🅼 ⚡️ 𝄟⃝🐬 💻</a>.imag</blockquote>\n" \
+      f"├── Resolution : {height}p ({width} × {height}\n\n" \
       f"<blockquote><b>⋅ 📚 Course »</b> {b_name}</blockquote>\n\n" \
       f"<blockquote><b>⋅ 🌟 Extracted By :</b> {CR}</blockquote>"
 
@@ -1163,8 +1166,9 @@ async def txt_handler(bot: Client, m: Message):
                         ccyt = ( 
                                f" ——— ✦ [📺] YouTube Id : {str(count).zfill(3)} ✦———\n\n" \
                                f" 🎬 Title : {name1}\n\n" \
-                               f" ├── Platform : <a href='{url}'>YouTube</a>\n\n" \
-                               f" ├── Resolution : {raw_text2}\n\n" \
+                               f" ├── Platform : <a href='{url}'>YouTube</a>\n" \
+                               f"<blockquote><b>⋅ ├── Extention :</b> <a href='https://t.me/Course_diploma_bot'>𝄟⃝🐬🅹🅰🅸 🆂🅷🆁🅸 🆁🅰🅼 ⚡️ 𝄟⃝🐬 💻</a>.youtube</blockquote>\n"
+                               f"├── Resolution : {height}p ({width} × {height}\n\n" \
                                f" 📚 Course » {b_name}\n\n" \
                                f" 🌟 Extracted By : {CR}\n\n" \
                                f" 🔗 It seems that this video might help you — <a href='{url}'>click here to watch</a>\n" \
@@ -1197,6 +1201,7 @@ async def txt_handler(bot: Client, m: Message):
                         ccpdf =( f" ——— ✦ [📖] PDF Id : {str(count).zfill(3)} ✦———\n\n" \
                                 f" 📄 Title : {name1}.pdf\n\n" \
                                 f" ├── Platform : Utkarsh App\n\n" \
+                                f"<blockquote><b>⋅ ├── Extention :</b> <a href='https://t.me/Course_diploma_bot'>𝄟⃝🐬🅹🅰🅸 🆂🅷🆁🅸 🆁🅰🅼 ⚡️ 𝄟⃝🐬 💻</a>.pdf</blockquote>\n"
                                 f" 📚 Course » {b_name}\n\n" \
                                 f" 🌟 Extracted By : {CR}\n\n" \
                                 f" 🔗 It seems that this PDF might help you — <a href='{url}'>click here to view</a>\n\n" \
