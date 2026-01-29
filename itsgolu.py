@@ -56,9 +56,12 @@ import subprocess
 import os
 import subprocess
 
+import os
+import subprocess
+
 def download_appx_m3u8(url: str, name: str) -> str | None:
     """
-    Download m3u8 video using ffmpeg (sync version)
+    Fast m3u8 video download using ffmpeg (sync version)
     """
     os.makedirs("downloads", exist_ok=True)
     output = f"downloads/{name}.mp4"
@@ -72,22 +75,26 @@ def download_appx_m3u8(url: str, name: str) -> str | None:
     cmd = [
         "ffmpeg",
         "-y",
+        "-threads", "4",              # multiple threads for faster processing
         "-headers", headers,
+        "-multiple_requests", "1",    # parallel segment requests (ffmpeg ≥ 5.1)
         "-i", url,
         "-c", "copy",
+        "-bufsize", "10M",            # bigger buffer for smoother download
         "-bsf:a", "aac_adtstoasc",
         output
     ]
 
-    # run ffmpeg synchronously
     process = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
     if process.returncode == 0 and os.path.exists(output):
-        print("✅ Download complete:", output)
+        print("✅ Fast download complete:", output)
         return output
     else:
         print("❌ ffmpeg error:", process.stderr.decode())
         return None
+
+
 
 def download_youtube(url, name, output_path="downloads"):
     if not os.path.exists(output_path):

@@ -16,6 +16,7 @@ from subprocess import getstatusoutput
 import base64
 # 🕒 Timezone
 import pytz
+from pyrogram import enums
 
 # 📦 Third-party Libraries
 import aiohttp
@@ -75,9 +76,12 @@ from db import db
 import os, requests, time
 from urllib.parse import unquote, urlparse
 from pyrogram.errors import FloodWait
+height = 1080
+width = 1920
+
 
 # PDF Download function
-def download_pdf(url: str, filename: str) -> str | None:
+'''def download_pdf(url: str, filename: str) -> str | None:
     url = unquote(url)
     origin = f"{urlparse(url).scheme}://{urlparse(url).netloc}"
     headers = {
@@ -124,7 +128,7 @@ def decrypt_pdf(file_path: str, key: str, out_name: str = "final.pdf") -> str | 
     out_path = f"/tmp/{out_name}"
     with open(out_path, "wb") as f:
         f.write(data)
-    return out_path
+    return out_path'''
 
 
 # Main logic (same as your elif block)
@@ -940,20 +944,23 @@ async def txt_handler(bot: Client, m: Message):
             if "edge.api.brightcove.com" in url:
                 pass
             elif "embed" in url or "youtube.com" in url or "youtu.be" in url:
-                youtube_url = url
-                api_url = (
-                "https://7689cb04-7df7-4e18-8e84-39bc2dad7335-00-nqy5dzhuolui.pike.replit.dev/"
-                f"player?youtube_url={youtube_url}"
-    )
-                print(f"[DEBUG] API URL: {api_url}")
-                 # Step 3: API call kare aur response parse kare
-                response = requests.get(api_url)
-                data = response.json()
-                print(f"[DEBUG] API Response: {data}")
+                
+    # embed URL handle
+                if "youtube.com/embed/" in url:
+                  video_id = url.split("embed/")[1].split("?")[0]
+    # short URL handle
+                elif "youtu.be/" in url:
+                  video_id = url.split("youtu.be/")[1].split("?")[0]
 
-    # Step 4: Final player_url nikale
-                if data.get("status") == "success":
-                 url = data.get("player_url")
+    # normal watch URL
+                elif "watch?v=" in url:
+                  video_id = url.split("watch?v=")[1].split("&")[0]
+
+                else:
+                  video_id = None
+
+                if video_id:
+                  url = f"https://www.youtube.com/watch?v={video_id}"
        
 
 
@@ -999,9 +1006,15 @@ async def txt_handler(bot: Client, m: Message):
              if "*" in enc_url:
         # URL = * se pehle wala
                before, after = enc_url.split("*", 1)
-
-    # URL = * se pehle wala
                url = before.strip()
+               # sirf ? se pehle wale part me change
+               path, sep, query = url.partition("?")
+               if path.endswith(".mp4"):
+                 path = path[:-4] + ".mkv"
+                 url = path + sep + query
+                 
+    # URL = * se pehle wala
+               
 
     # APPX KEY = * ke baad wala decoded (final digit)
                appxkey = base64.b64decode(after.strip()).decode().strip()
@@ -1043,52 +1056,64 @@ async def txt_handler(bot: Client, m: Message):
 
             try:
                 cc = (
-    f"<blockquote><b>⋅——— ✦ {str(count).zfill(3)} ✦———</b></blockquote>\n" \
-     f"<blockquote><b>⋅ 🎞️ Title :</b> {𝗻𝗮𝗺𝗲𝟭}</blockquote>\n" \
-     f"<blockquote><b>⋅ ├── Extention :</b> <a href='https://t.me/Course_diploma_bot'>𝄟⃝🐬🅹🅰🅸 🆂🅷🆁🅸 🆁🅰🅼 ⚡️ 𝄟⃝🐬 💻</a>.mkv</blockquote>\n" \
-     f"<blockquote><b>⋅ ├── Resolution :</b> {raw_text2}</blockquote>\n" \
-     f"<blockquote><b>⋅ 📚 Course »</b> {b_name}</blockquote>\n" \
-     f"<blockquote><b>⋅ 🌟 Extracted By :</b> {CR}</blockquote>"
+     f"<blockquote><b>⋅——— ✦ {str(count).zfill(3)} ✦——— </b></blockquote>\n\n" \
+     f"<blockquote><b> 🎞️ Title : {𝗻𝗮𝗺𝗲𝟭}</b></blockquote>\n\n" \
+     f"<blockquote><b> ├── Extention : <a href='https://t.me/Course_diploma_bot'>𝄟⃝🐬🅹🅰🅸 🆂🅷🆁🅸 🆁🅰🅼 ⚡️ 𝄟⃝🐬 💻</a>.mkv</b></blockquote>\n" \
+     f"├── Resolution : {height}p ({width} × {height}\n\n" \
+     f"<blockquote><b> 📚 Course » {b_name}</b></blockquote>\n\n" \
+     f"<blockquote><b> 🌟 Extracted By : {CR}</b></blockquote>"
 
 
 )
                 cc1 = (
-    f"<blockquote><b>⋅——— ✦ {str(count).zfill(3)} ✦———</b></blockquote>\n" \
-      f"<blockquote><b>⋅ 📁 Title :</b> {𝗻𝗮𝗺𝗲𝟭}</blockquote>\n" \
-      f"<blockquote><b>⋅ ├── Extention :</b> <a href='https://t.me/Course_diploma_bot'>𝄟⃝🐬🅹🅰🅸 🆂🅷🆁🅸 🆁🅰🅼 ⚡️ 𝄟⃝🐬 💻</a>.mkv</blockquote>\n" \
-      f"<blockquote><b>⋅ ├── Resolution :</b> {raw_text2}</blockquote>\n" \
-      f"<blockquote><b>⋅ 📚 Course »</b> {b_name}</blockquote>\n" \
-      f"<blockquote><b>⋅ 🌟 Extracted By :</b> {CR}</blockquote>"
+    f"<blockquote><b>⋅——— ✦ {str(count).zfill(3)} ✦——— </b></blockquote>\n\n" \
+      f"<blockquote><b> 📁 Title :{𝗻𝗮𝗺𝗲𝟭}</b></blockquote>\n\n" \
+      f"<blockquote><b> ├── Extention : <a href='https://t.me/Course_diploma_bot'>𝄟⃝🐬🅹🅰🅸 🆂🅷🆁🅸 🆁🅰🅼 ⚡️ 𝄟⃝🐬 💻</a>.pdf</b></blockquote>\n" \
+      f"├── Resolution : {height}p ({width} × {height}\n\n" \
+      f"<blockquote><b> 📚 Course » {b_name}</b></blockquote>\n\n" \
+      f"<blockquote><b> 🌟 Extracted By : {CR}</b></blockquote>"
 
 
 )
                 cczip = (
-        f"<blockquote><b>⋅——— ✦ {str(count).zfill(3)} ✦———</b></blockquote>\n" \
-        f"<blockquote><b>⋅ 📁 Title :</b> {𝗻𝗮𝗺𝗲𝟭}</blockquote>\n" \
-        f"<blockquote><b>⋅ ├── Extention :</b> <a href='https://t.me/Course_diploma_bot'>𝄟⃝🐬🅹🅰🅸 🆂🅷🆁🅸 🆁🅰🅼 ⚡️ 𝄟⃝🐬 💻</a>.mkv</blockquote>\n" \
-        f"<blockquote><b>⋅ ├── Resolution :</b> {raw_text2}</blockquote>\n" \
-        f"<blockquote><b>⋅ 📚 Course »</b> {b_name}</blockquote>\n" \
-        f"<blockquote><b>⋅ 🌟 Extracted By :</b> {CR}</blockquote>"
+        f"<blockquote><b> ——— ✦ {str(count).zfill(3)} ✦———</b></blockquote>\n" \
+        f"<blockquote><b> 📁 Title : {𝗻𝗮𝗺𝗲𝟭}</b></blockquote>\n" \
+        f"<blockquote><b> ├── Extention : <a href='https://t.me/Course_diploma_bot'>𝄟⃝🐬🅹🅰🅸 🆂🅷🆁🅸 🆁🅰🅼 ⚡️ 𝄟⃝🐬 💻</a>.zip</b></blockquote>\n" \
+        f"├── Resolution : {height}p ({width} × {height}\n\n" \
+        f"<blockquote><b> 📚 Course » {b_name}</b></blockquote>\n" \
+        f"<blockquote><b> 🌟 Extracted By : {CR}</b></blockquote>"
 
 )
 
                 ccm = (
-      f"<blockquote><b>⋅——— ✦ [🎵] Audio Id : {str(count).zfill(3)} ✦———</b></blockquote>\n" \
-      f"<blockquote><b>⋅ ├── Extention :</b> <a href='https://t.me/Course_diploma_bot'>𝄟⃝🐬🅹🅰🅸 🆂🅷🆁🅸 🆁🅰🅼 ⚡️ 𝄟⃝🐬 💻</a>.mkv</blockquote>\n" \
-      f"<blockquote><b>⋅ Audio Title :</b> {name1}.mp3</blockquote>\n" \
-      f"<blockquote><b>⋅ Batch Name :</b> {b_name}</blockquote>\n" \
-      f"<blockquote><b>⋅ 🌟 Extracted By :</b> {CR}</blockquote>"
+      f"<blockquote><b> ——— ✦ [🎵] Audio Id : {str(count).zfill(3)} ✦———</b></blockquote>\n" \
+      f"<blockquote><b> ├── Extention : <a href='https://t.me/Course_diploma_bot'>𝄟⃝🐬🅹🅰🅸 🆂🅷🆁🅸 🆁🅰🅼 ⚡️ 𝄟⃝🐬 💻</a>.audio</b></blockquote>\n" \
+      f"<blockquote><b> Audio Title : {name1}.mp3</blockquote>\n" \
+      f"<blockquote><b> Batch Name : {b_name} </b></blockquote>\n" \
+      f"<blockquote><b> 🌟 Extracted By : {CR} </b></blockquote>"
 
 
                 )
                 cchtml = (
          f"<blockquote><b>⋅——— ✦ [🌐] Html Id : {str(count).zfill(3)} ✦———</b></blockquote>\n" \
-         f"<blockquote><b>⋅ ├── Extention :</b> <a href='https://t.me/Course_diploma_bot'>𝄟⃝🐬🅹🅰🅸 🆂🅷🆁🅸 🆁🅰🅼 ⚡️ 𝄟⃝🐬 💻</a>.mkv</blockquote>\n" \
-         f"<blockquote><b>⋅ Html Title :</b> {name1}.html</blockquote>\n" \
-         f"<blockquote><b>⋅ Batch Name :</b> {b_name}</blockquote>\n" \
-         f"<blockquote><b>⋅ 🌟 Extracted By :</b> {CR}</blockquote>"
+         f"<blockquote><b>⋅ ├── Extention : <a href='https://t.me/Course_diploma_bot'>𝄟⃝🐬🅹🅰🅸 🆂🅷🆁🅸 🆁🅰🅼 ⚡️ 𝄟⃝🐬 💻</a>.html </b></blockquote>\n" \
+         f"<blockquote><b>⋅ Html Title : {name1}.html</b></blockquote>\n" \
+         f"<blockquote><b>⋅ Batch Name : {b_name}</b></blockquote>\n" \
+         f"<blockquote><b>⋅ 🌟 Extracted By : {CR} </b></blockquote>"
+
 
                 )
+
+                ccimg = (
+      f"<blockquote><b>⋅——— ✦ {str(count).zfill(3)} ✦———</b></blockquote>\n\n" \
+      f"<blockquote><b>⋅ 📁 Title :</b> {𝗻𝗮𝗺𝗲𝟭}</blockquote>\n\n" \
+      f"<blockquote><b>⋅ ├── Extention :</b> <a href='https://t.me/Course_diploma_bot'>𝄟⃝🐬🅹🅰🅸 🆂🅷🆁🅸 🆁🅰🅼 ⚡️ 𝄟⃝🐬 💻</a>.imag</blockquote>\n" \
+      f"├── Resolution : {height}p ({width} × {height}\n\n" \
+      f"<blockquote><b>⋅ 📚 Course »</b> {b_name}</blockquote>\n\n" \
+      f"<blockquote><b>⋅ 🌟 Extracted By :</b> {CR}</blockquote>"
+
+                )
+                
                 if "drive" in url:
                     try:
                         ka = await helper.download(url, name)
@@ -1120,6 +1145,8 @@ async def txt_handler(bot: Client, m: Message):
                                     chat_id=channel_id,
                                     document=decrypted_path,
                                     caption=cc1
+                                    
+                                    
                                 )
                                 count += 1
                                 os.remove(decrypted_path)   # cleanup
@@ -1136,15 +1163,17 @@ async def txt_handler(bot: Client, m: Message):
         # If you want to use a custom thumbnail, replace thumbnail_url with your own hosted image
 
         # HTML caption block
-                        ccyt = f"<blockquote><b>⋅——— ✦ [📺] YouTube Id : {str(count).zfill(3)} ✦———</b></blockquote>\n" \
-                               f"<blockquote><b>⋅ 🎬 Title :</b> {name1}</blockquote>\n" \
-                               f"<blockquote><b>⋅ ├── Platform :</b> <a href='{url}'>YouTube</a></blockquote>\n" \
-                               f"<blockquote><b>⋅ ├── Resolution :</b> {raw_text2}</blockquote>\n" \
-                               f"<blockquote><b>⋅ 📚 Course »</b> {b_name}</blockquote>\n" \
-                               f"<blockquote><b>⋅ 🌟 Extracted By :</b> {CR}</blockquote>\n\n" \
-                               f"<blockquote><b>🔗 It seems that this video might help you — <a href='{url}'>click here to watch</a></b></blockquote>\n" \
-                               f"<blockquote><b>🎬 Stream on <a href='{url}'>Jay Shree Ram Player</a></b></blockquote>"
-
+                        ccyt = ( 
+                               f" ——— ✦ [📺] YouTube Id : {str(count).zfill(3)} ✦———\n\n" \
+                               f" 🎬 Title : {name1}\n\n" \
+                               f" ├── Platform : <a href='{url}'>YouTube</a>\n" \
+                               f"<blockquote><b>⋅ ├── Extention :</b> <a href='https://t.me/Course_diploma_bot'>𝄟⃝🐬🅹🅰🅸 🆂🅷🆁🅸 🆁🅰🅼 ⚡️ 𝄟⃝🐬 💻</a>.youtube</blockquote>\n"
+                               f"├── Resolution : {height}p ({width} × {height}\n\n" \
+                               f" 📚 Course » {b_name}\n\n" \
+                               f" 🌟 Extracted By : {CR}\n\n" \
+                               f" 🔗 It seems that this video might help you — <a href='{url}'>click here to watch</a>\n" \
+                               f" 🎬 Stream on <a href='{url}'>Jay Shree Ram Player</a>"
+                        )
         # Buttons
                         keyboard_layout = [
                         [InlineKeyboardButton("▶️ Watch on YouTube", url=url)],
@@ -1153,7 +1182,7 @@ async def txt_handler(bot: Client, m: Message):
                         reply_markup = InlineKeyboardMarkup(keyboard_layout)
 
         # Send message with thumbnail and buttons
-                        await bot.send_photo(channel_id, photo=thumbnail_url, caption=ccyt, reply_markup=reply_markup, parse_mode="HTML")
+                        await bot.send_photo(channel_id, photo=thumbnail_url, caption=ccyt, reply_markup=reply_markup, parse_mode=enums.ParseMode.HTML)
                         count += 1
                         await asyncio.sleep(4)
 
@@ -1169,13 +1198,15 @@ async def txt_handler(bot: Client, m: Message):
                         thumbnail_url = "https://i.ibb.co/HL5FWsHX/Chat-GPT-Image-Jan-28-2026-07-21-48-PM.png"
 
         # HTML caption block
-                        ccpdf = f"<blockquote><b>⋅——— ✦ [📖] PDF Id : {str(count).zfill(3)} ✦———</b></blockquote>\n" \
-                                f"<blockquote><b>⋅ 📄 Title :</b> {name1}.pdf</blockquote>\n" \
-                                f"<blockquote><b>⋅ ├── Platform :</b> Utkarsh App</blockquote>\n" \
-                                f"<blockquote><b>⋅ 📚 Course »</b> {b_name}</blockquote>\n" \
-                                f"<blockquote><b>⋅ 🌟 Extracted By :</b> {CR}</blockquote>\n\n" \
-                                f"<blockquote><b>🔗 It seems that this PDF might help you — <a href='{url}'>click here to view</a></b></blockquote>\n" \
-                                f"<blockquote><b>📖 View on <a href='{url}'>Utkarsh PDF Reader</a></b></blockquote>"
+                        ccpdf =( f" ——— ✦ [📖] PDF Id : {str(count).zfill(3)} ✦———\n\n" \
+                                f" 📄 Title : {name1}.pdf\n\n" \
+                                f" ├── Platform : Utkarsh App\n\n" \
+                                f"<blockquote><b>⋅ ├── Extention :</b> <a href='https://t.me/Course_diploma_bot'>𝄟⃝🐬🅹🅰🅸 🆂🅷🆁🅸 🆁🅰🅼 ⚡️ 𝄟⃝🐬 💻</a>.pdf</blockquote>\n"
+                                f" 📚 Course » {b_name}\n\n" \
+                                f" 🌟 Extracted By : {CR}\n\n" \
+                                f" 🔗 It seems that this PDF might help you — <a href='{url}'>click here to view</a>\n\n" \
+                                f" 📖 View on <a href='{url}'>Utkarsh PDF Reader</a>"
+                               )
 
         # Buttons
                         keyboard_layout = [
@@ -1184,7 +1215,7 @@ async def txt_handler(bot: Client, m: Message):
                         reply_markup = InlineKeyboardMarkup(keyboard_layout)
 
         # Send message with thumbnail and buttons
-                        await bot.send_photo(channel_id, photo=thumbnail_url, caption=ccpdf, reply_markup=reply_markup, parse_mode="HTML")
+                        await bot.send_photo(channel_id, photo=thumbnail_url, caption=ccpdf, reply_markup=reply_markup, parse_mode=enums.ParseMode.HTML)
                         count += 1
                         await asyncio.sleep(4)
 
@@ -1315,7 +1346,8 @@ async def txt_handler(bot: Client, m: Message):
                             copy = await bot.send_document(
                                 chat_id=channel_id,
                                 document=f"{namef}.pdf",
-                                caption=cc1
+                                caption=cc1,
+                                parse_mode=enums.ParseMode.HTML
                             )
 
                             count += 1
@@ -1395,7 +1427,7 @@ async def txt_handler(bot: Client, m: Message):
                     filename = res_file  
                     await prog1.delete(True)
                     await prog.delete(True)
-                    await helper.send_vid(bot, m, cc, filename, thumb, name, prog, channel_id, watermark=watermark)
+                    await helper.send_vid(bot, m, cc, filename, thumb, name, prog, channel_id, watermark=watermark, parse_mode=enums.ParseMode.HTML)
 
                     count += 1
                     await asyncio.sleep(1)  
@@ -1433,7 +1465,7 @@ async def txt_handler(bot: Client, m: Message):
                     filename = res_file  
                     await prog1.delete(True)
                     await prog.delete(True)
-                    await helper.send_vid(bot, m, cc, filename, thumb, name, prog, channel_id, watermark=watermark)
+                    await helper.send_vid(bot, m, cc, filename, thumb, name, prog, channel_id, watermark=watermark )
 
                     count += 1
                     await asyncio.sleep(1)  
@@ -1463,7 +1495,7 @@ async def txt_handler(bot: Client, m: Message):
                     res_file = await helper.decrypt_and_merge_video(mpd, keys_string, path, name, raw_text2)
                     filename = res_file
                     await prog.delete(True)
-                    await helper.send_vid(bot, m, cc, filename, thumb, name, prog, channel_id, watermark=watermark)
+                    await helper.send_vid(bot, m, cc, filename, thumb, name, prog, channel_id, watermark=watermark )
                     count += 1
                     await asyncio.sleep(1)
                     continue
