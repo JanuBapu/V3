@@ -1056,7 +1056,7 @@ async def txt_handler(bot: Client, m: Message):
 
             try:
                 cc = (
-     f"<blockquote><b>⋅——— ✦ {str(count).zfill(3)} ✦——— </b></blockquote>\n\n" \
+     f"<blockquote><b> ——— ✦ {str(count).zfill(3)} ✦——— </b></blockquote>\n\n" \
      f"<blockquote><b> 🎞️ Title : {𝗻𝗮𝗺𝗲𝟭}</b></blockquote>\n\n" \
      f"<blockquote><b> ├── Extention : <a href='https://t.me/Course_diploma_bot'>𝄟⃝🐬🅹🅰🅸 🆂🅷🆁🅸 🆁🅰🅼 ⚡️ 𝄟⃝🐬 💻</a>.mkv</b></blockquote>\n" \
      f"├── Resolution : {height}p ({width} × {height}\n\n" \
@@ -1166,8 +1166,8 @@ async def txt_handler(bot: Client, m: Message):
                         ccyt = ( 
                                f" ——— ✦ [📺] YouTube Id : {str(count).zfill(3)} ✦———\n\n" \
                                f" 🎬 Title : {name1}\n\n" \
-                               f" ├── Platform : <a href='{url}'>YouTube</a>\n" \
-                               f"<blockquote><b>⋅ ├── Extention :</b> <a href='https://t.me/Course_diploma_bot'>𝄟⃝🐬🅹🅰🅸 🆂🅷🆁🅸 🆁🅰🅼 ⚡️ 𝄟⃝🐬 💻</a>.youtube</blockquote>\n"
+                               f" ├── Platform : <a href='{url}'>YouTube</a>\n\n" \
+                               f"<blockquote><b>├── Extention :</b> <a href='https://t.me/Course_diploma_bot'>𝄟⃝🐬🅹🅰🅸 🆂🅷🆁🅸 🆁🅰🅼 ⚡️ 𝄟⃝🐬 💻</a>.youtube</blockquote>\n"
                                f"├── Resolution : {height}p ({width} × {height}\n\n" \
                                f" 📚 Course » {b_name}\n\n" \
                                f" 🌟 Extracted By : {CR}\n\n" \
